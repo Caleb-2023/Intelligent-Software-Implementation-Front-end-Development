@@ -1,0 +1,9 @@
+{
+  "name": "wodniack-dev-study-mirror",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "mirror": "node ./scripts/mirror-site.mjs",
+    "serve": "node ./scripts/serve-static.mjs"
+  }
+}
