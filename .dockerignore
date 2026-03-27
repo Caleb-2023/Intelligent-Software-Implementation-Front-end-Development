@@ -1,9 +1,1 @@
-node_modules
 .git
-.gitignore
-.DS_Store
-Dockerfile
-docker-compose*.yml
-*.md
-scripts/mirror-site.mjs
-scripts/serve-static.mjs
