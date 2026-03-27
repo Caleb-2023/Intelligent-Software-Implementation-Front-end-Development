@@ -8,6 +8,7 @@ import { openStylingOverlay, closeStylingOverlay } from "./wardrobe.mjs";
 import { openAiStylistOverlay, closeAiStylistOverlay, applyAiStylistRecommendation } from "./ai-stylist.mjs";
 import { updateWeatherContextUi } from "./weather.mjs";
 import { buildRecommendationText, getCurrentPreviewImage, getHistory, saveHistory, renderHistory, renderRecommendationCard } from "./history.mjs";
+import { bindAuthEvents, closeAuthOverlay } from "./auth.mjs";
 
 export function bindEvents() {
   const photoInput = $("#am-photo-input");
@@ -17,6 +18,7 @@ export function bindEvents() {
   const stylingTrigger = $("#am-styling-trigger");
   const moduleEntryAiQuickButton = $("#am-module-entry-ai");
   const stylingOverlay = $("#am-styling-overlay");
+  const authOverlay = $("#am-auth-overlay");
   const stylingClose = $("#am-styling-close");
   const openAiStylistButton = $("#am-open-ai-stylist");
   const aiStylistOverlay = $("#am-ai-stylist-overlay");
@@ -162,6 +164,11 @@ export function bindEvents() {
       return;
     }
 
+    if (authOverlay && !authOverlay.hidden) {
+      closeAuthOverlay();
+      return;
+    }
+
     if (aiStylistOverlay && !aiStylistOverlay.hidden) {
       closeAiStylistOverlay();
       return;
@@ -171,6 +178,8 @@ export function bindEvents() {
       closeStylingOverlay();
     }
   });
+
+  bindAuthEvents();
 
   if (refreshWardrobe) {
     refreshWardrobe.addEventListener("click", async () => {

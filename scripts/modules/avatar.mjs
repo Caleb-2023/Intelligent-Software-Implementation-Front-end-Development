@@ -65,7 +65,7 @@ export async function syncAvatarToBackend() {
 
   try {
     const formData = new FormData();
-    formData.append("photo", state.uploadedPhotoFile);
+    formData.append("file", state.uploadedPhotoFile);
 
     const payload = await apiRequest("/figures", {
       method: "POST",

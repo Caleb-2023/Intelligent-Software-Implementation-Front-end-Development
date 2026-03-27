@@ -1,7 +1,7 @@
 import { MAX_STYLING_SELECTIONS } from "../config.mjs";
 import { state } from "../state.mjs";
 import { $, $$, escapeHtml } from "../utils/dom.mjs";
-import { apiRequest, getApiToken } from "../api/client.mjs";
+import { apiRequest, getApiToken, pollTask } from "../api/client.mjs";
 import { getClothId, getSelectedCloths, formatCategoryLabel, formatClothMeta, syncFallbackSelectionsFromCatalog } from "./cloth-utils.mjs";
 import { mapWeatherForStyling, fetchWeatherContext, updateWeatherContextUi } from "./weather.mjs";
 import { mapWeatherToAtmosphereMode, createAiAtmosphereRenderer } from "./ai-atmosphere.mjs";
@@ -103,48 +103,80 @@ export function computeLocalStylistSelection({ weather, occasion }) {
   return selected.slice(0, MAX_STYLING_SELECTIONS);
 }
 
-export async function requestApiStylistSelection({ weather, occasion }) {
-  const payload = await apiRequest("/recommendations/smart", {
-    method: "POST",
-    body: JSON.stringify({
-      weather,
-      occasion,
-      city: state.weatherContext.city,
-      latitude: state.weatherContext.latitude,
-      longitude: state.weatherContext.longitude
-    })
-  });
+function buildWeatherDescription() {
+  const { temperatureC, humidity } = state.weatherContext;
+  const bucket = state.selections.weather || "cloudy";
+  const parts = [];
 
-  const data = payload?.data || payload || {};
+  if (typeof temperatureC === "number") {
+    parts.push(`${Math.round(temperatureC)}度`);
+  }
+
+  const bucketLabel = { sunny: "晴天", rainy: "雨天", cloudy: "多云", snowy: "雪天" }[bucket] || bucket;
+  parts.push(bucketLabel);
+
+  if (typeof humidity === "number") {
+    parts.push(`湿度${Math.round(humidity)}%`);
+  }
+
+  return parts.join(" ") || bucket;
+}
+
+function extractClothIdsFromOutfits(outfits) {
   const rawIds = [];
 
-  if (Array.isArray(data?.clothIds)) {
-    rawIds.push(...data.clothIds);
+  if (!Array.isArray(outfits)) {
+    return rawIds;
   }
 
-  if (Array.isArray(data?.selectedClothIds)) {
-    rawIds.push(...data.selectedClothIds);
-  }
+  outfits.forEach((outfit) => {
+    if (!Array.isArray(outfit?.items)) {
+      return;
+    }
 
-  if (Array.isArray(data?.items)) {
-    data.items.forEach((item) => {
-      if (typeof item === "string") {
-        rawIds.push(item);
-        return;
-      }
-
-      const candidate = getClothId(item?.cloth || item);
-      if (candidate) {
-        rawIds.push(candidate);
+    outfit.items.forEach((item) => {
+      const id = String(item?.item_id || "");
+      if (id && state.clothLookup[id]) {
+        rawIds.push(id);
       }
     });
-  }
+  });
 
   return rawIds
-    .map((id) => String(id || ""))
-    .filter((id) => id && state.clothLookup[id])
     .filter((id, index, arr) => arr.indexOf(id) === index)
     .slice(0, MAX_STYLING_SELECTIONS);
+}
+
+export async function requestApiStylistSelection({ weather, occasion }) {
+  const body = {
+    occasion,
+    weather: buildWeatherDescription(),
+    season: mapWeatherForStyling(weather)
+  };
+
+  if (state.figureId) {
+    body.figure_id = state.figureId;
+  }
+
+  const payload = await apiRequest("/styles/ai-recommend", {
+    method: "POST",
+    body: JSON.stringify(body)
+  });
+
+  const data = payload?.data || {};
+
+  if (Array.isArray(data.outfits) && data.outfits.length) {
+    return extractClothIdsFromOutfits(data.outfits);
+  }
+
+  if (data.task_id) {
+    const result = await pollTask(data.task_id);
+    if (Array.isArray(result?.outfits)) {
+      return extractClothIdsFromOutfits(result.outfits);
+    }
+  }
+
+  return [];
 }
 
 export function updateAiStylistStatus(message) {

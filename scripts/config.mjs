@@ -3,8 +3,9 @@ export const GITHUB_PROJECT_URL = "https://github.com/Felixzijunliang/wardrobe";
 export const QR_ASSET_VERSION = "v4";
 export const QR_DEFAULT_SRC = `/images/qr-wardrobe-github-default.png?${QR_ASSET_VERSION}`;
 export const QR_LIGHT_SRC = `/images/qr-wardrobe-github-light.png?${QR_ASSET_VERSION}`;
-export const API_BASE_URL = "http://localhost:3000/api";
+export const API_BASE_URL = "/api";
 export const API_TOKEN_STORAGE_KEY = "auramirror.api.token";
+export const AUTH_USER_STORAGE_KEY = "auramirror.auth.user";
 export const MAX_STYLING_SELECTIONS = 4;
 export const FALLBACK_CLOTHS = [
   {

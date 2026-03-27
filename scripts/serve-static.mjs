@@ -1,5 +1,6 @@
 import { createReadStream } from "node:fs";
 import { access, stat } from "node:fs/promises";
+import { request as httpRequest } from "node:http";
 import path from "node:path";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,7 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(SCRIPT_DIR, "..");
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || "127.0.0.1";
+const API_PROXY_TARGET = process.env.API_PROXY || "http://127.0.0.1:3000";
 
 const contentTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -31,7 +33,37 @@ function resolvePath(urlPath) {
   return path.join(ROOT, safePath);
 }
 
+function proxyToBackend(req, res) {
+  const target = new URL(API_PROXY_TARGET);
+  const options = {
+    hostname: target.hostname,
+    port: target.port || 80,
+    path: req.url,
+    method: req.method,
+    headers: { ...req.headers, host: `${target.hostname}:${target.port}` }
+  };
+
+  const proxyReq = httpRequest(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on("error", () => {
+    res.writeHead(502, { "content-type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ success: false, message: `Backend unreachable at ${API_PROXY_TARGET}` }));
+  });
+
+  req.pipe(proxyReq);
+}
+
 const server = createServer(async (req, res) => {
+  const pathname = new URL(req.url || "/", "http://localhost").pathname;
+
+  if (pathname.startsWith("/api/")) {
+    proxyToBackend(req, res);
+    return;
+  }
+
   try {
     let filePath = resolvePath(req.url || "/");
 
@@ -59,4 +91,5 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`Static mirror available at http://${HOST}:${PORT}`);
+  console.log(`API proxy: /api/* → ${API_PROXY_TARGET}`);
 });
