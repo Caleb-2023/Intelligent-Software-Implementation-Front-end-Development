@@ -164,7 +164,9 @@ export function updateBranding() {
 
   const menuTexts = ["Avatar", "Try-On", "History"];
   $$(".js-menu-link .sb__text").forEach((el, idx) => {
-    if (menuTexts[idx]) {
+    // skip injected auth nav items (they manage their own text)
+    if (el.closest(".am-nav-auth-item")) return;
+    if (menuTexts[idx] !== undefined) {
       el.textContent = menuTexts[idx];
     }
   });
