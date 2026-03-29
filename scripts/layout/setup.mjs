@@ -496,6 +496,11 @@ export function setupTryOnSection() {
 
     // Swap video → img placeholder.
     if (video) {
+      video.pause();
+      video.removeAttribute("src");
+      video.removeAttribute("data-src");
+      video.load();
+
       const img = document.createElement("img");
       img.src = WHITE_PLACEHOLDER;
       img.width = 1082;
