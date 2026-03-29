@@ -28,7 +28,10 @@ const contentTypes = new Map([
 
 function resolvePath(urlPath) {
   const pathname = decodeURIComponent(new URL(urlPath, "http://localhost").pathname);
-  const basePath = pathname === "/" ? "/index.html" : pathname;
+  const aliasedPath = pathname
+    .replace(/^\/am-scripts\//, "/scripts/")
+    .replace(/^\/am-styles\//, "/styles/");
+  const basePath = aliasedPath === "/" ? "/index.html" : aliasedPath;
   const safePath = path.normalize(basePath).replace(/^(\.\.[/\\])+/, "");
   return path.join(ROOT, safePath);
 }
