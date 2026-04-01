@@ -25,11 +25,6 @@ import ASeparator from './ASeparator.astro'
   </div>
 
   <div class="s__content js-content">
-    <ASeparator
-      class="s__separator js-separator"
-      strings={['Ant', 'oi', 'ne', 'Wo', 'dn', 'ia', 'ck']}
-    />
-
     <h1 class="s__title">
       <span class="s__title__word js-word">Aura</span>
       <img
@@ -378,19 +373,6 @@ import ASeparator from './ASeparator.astro'
 
       overflow: hidden;
       transform-origin: 50% 100%;
-
-      &:before {
-        position: absolute;
-        top: 0;
-        left: 0;
-
-        width: 100%;
-        height: 1px;
-
-        background: color(secondary);
-
-        content: '';
-      }
     }
 
     .s__title,
