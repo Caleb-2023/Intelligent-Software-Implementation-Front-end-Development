@@ -1,10 +1,28 @@
 ---
-import AWaves from './AWaves.astro'
 import ASeparator from './ASeparator.astro'
 ---
 
 <div class="s-hero" data-intersect>
-  <AWaves class="s__waves" />
+  <div class="s__auth-slot">
+    <div class="s__auth-action" data-auth-action="auth">
+      <button
+        type="button"
+        class="am-auth-nav-button s__auth-button"
+        aria-label="Login|Register"
+        aria-haspopup="dialog"
+        aria-controls="am-auth-overlay"
+        aria-expanded="false"
+      >
+        Login|Register
+      </button>
+    </div>
+
+    <div class="s__auth-action" data-auth-action="signout" hidden>
+      <button type="button" class="am-auth-nav-button s__auth-button" aria-label="Sign Out">
+        Sign Out
+      </button>
+    </div>
+  </div>
 
   <div class="s__content js-content">
     <ASeparator
@@ -38,9 +56,8 @@ import ASeparator from './ASeparator.astro'
   import Ticker from '../utils/Ticker'
 
   import { gsap } from 'gsap'
-  import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin'
   import { SplitText } from 'gsap/SplitText'
-  gsap.registerPlugin(DrawSVGPlugin, SplitText)
+  gsap.registerPlugin(SplitText)
 
   class Section {
     el: HTMLElement
@@ -118,8 +135,7 @@ import ASeparator from './ASeparator.astro'
      * Intro
      */
     intro() {
-      const waves = this.el.querySelector('a-waves')
-      const lines = waves.querySelectorAll('.js-line')
+      const authSlot = this.el.querySelector('.s__auth-slot')
       const content = this.el.querySelector('.js-content')
       const border = this.el.querySelector('.js-border')
       const chars = content.querySelectorAll('.char__inner')
@@ -127,28 +143,6 @@ import ASeparator from './ASeparator.astro'
       const star = content.querySelector('.js-star')
 
       const tl = gsap.timeline()
-
-      tl.fromTo(
-        lines,
-        {
-          drawSVG: '100% 100%',
-        },
-        {
-          drawSVG: '0% 100%',
-          duration: 3,
-          ease: 'expo.out',
-          stagger: {
-            amount: 0.5,
-            from: 'edges',
-            ease: 'power3.inOut',
-          },
-        },
-        0.5
-      )
-
-      tl.call(() => {
-        waves.dispatchEvent(new CustomEvent('introend'))
-      }, null, '-=1')
 
       tl.set(
         this.el,
@@ -170,13 +164,14 @@ import ASeparator from './ASeparator.astro'
       )
 
       tl.from(
-        waves,
+        authSlot,
         {
-          y: '100%',
-          duration: 1.35,
+          y: '15%',
+          opacity: 0,
+          duration: 1.1,
           ease: 'expo.out',
         },
-        0
+        0.2
       )
 
       tl.fromTo(
@@ -326,12 +321,41 @@ import ASeparator from './ASeparator.astro'
       min-height: calc(100svh - 4.5rem - 1px);
     }
 
-    .s__waves {
+    .s__auth-slot {
+      @include flex(column, center, center);
+
       width: 100%;
       height: 100%;
 
       flex-grow: 1;
       flex-shrink: 1;
+
+      .s__auth-action[hidden] {
+        display: none;
+      }
+    }
+
+    .s__auth-button {
+      min-width: 12rem;
+      padding: 0.9rem 1.5rem;
+
+      color: color(primary);
+      font: 500 0.95rem / 1 font-family(fraktion);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+
+      border: 1px solid color(secondary);
+      background: color(secondary);
+      cursor: pointer;
+      transition:
+        background 0.25s ease(out-expo),
+        color 0.25s ease(out-expo);
+
+      &:hover,
+      &:focus-visible {
+        color: color(secondary);
+        background: transparent;
+      }
     }
 
     .s__border {
