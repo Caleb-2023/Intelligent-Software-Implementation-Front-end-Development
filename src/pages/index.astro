@@ -115,27 +115,37 @@ import '../styles/global.scss'
       <SiteFoot />
     </div><!-- .site-wrapper -->
 
-    <div
-      class="site-intro js-intro"
-      style="opacity: 1; position: fixed; top: 0; left: 0; z-index: 50; width: 100%; height: 100%; background: #F40C3F;"
-    >
-      <div class="sb-logo js-logo">
-        <div class="sb__path sb__path--v sb__path--v-1 js-logo-line-v"></div>
-        <div class="sb__path sb__path--h sb__path--h-1 js-logo-line-h"></div>
-        <div class="sb__path sb__path--v sb__path--v-2 js-logo-line-v"></div>
-        <div class="sb__path sb__path--v sb__path--v-3 js-logo-line-v"></div>
-        <div class="sb__path sb__path--h sb__path--h-2 js-logo-line-h"></div>
-        <div class="sb__path sb__path--v sb__path--v-4 js-logo-line-v"></div>
-        <div class="sb__path sb__path--h sb__path--h-3 js-logo-line-h"></div>
-        <div class="sb__path sb__path--v sb__path--v-5 js-logo-line-v"></div>
-      </div><!-- .sb-logo -->
+    <div class="site-intro js-intro" aria-hidden="true">
+      <div class="site-intro__brand js-intro-brand">
+        <svg
+          class="site-intro__mark"
+          width="280"
+          height="280"
+          viewBox="0 0 280 280"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M240.245 16.8V280h39.75V0h-160V280h39.755V16.8h19.8V280h39.755V16.8h19.8Z"
+            fill="currentColor"
+          >
+          </path>
+          <path d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z" fill="currentColor">
+          </path>
+        </svg>
 
-      <div class="site-intro__border site-intro__border--top js-border-top">
-      </div>
-      <div class="site-intro__border site-intro__border--left js-border-left">
-      </div>
-      <div class="site-intro__border site-intro__border--right js-border-right">
-      </div>
+        <div class="site-intro__name" aria-hidden="true">
+          <span class="site-intro__name-piece">
+            <span class="js-intro-name-piece">Aura</span>
+          </span>
+          <span class="site-intro__name-piece">
+            <span class="js-intro-name-piece">Mirror</span>
+          </span>
+        </div>
+      </div><!-- .site-intro__brand -->
+
+      <div class="site-intro__scan js-intro-scan"></div>
     </div><!-- .site-intro -->
 
     <div class="site-mount js-mount"></div>
@@ -389,11 +399,32 @@ import '../styles/global.scss'
         const wrapper: HTMLElement = document.querySelector('.js-site-wrapper')
         const intro: HTMLElement = document.querySelector('.js-intro')
         const mount: HTMLElement = document.querySelector('.js-mount')
-        const logoLinesV: NodeList = intro.querySelectorAll('.js-logo-line-v')
-        const logoLinesH: NodeList = intro.querySelectorAll('.js-logo-line-h')
-        const borderTop: HTMLElement = intro.querySelector('.js-border-top')
-        const borderLeft: HTMLElement = intro.querySelector('.js-border-left')
-        const borderRight: HTMLElement = intro.querySelector('.js-border-right')
+        const introBrand: HTMLElement = intro?.querySelector('.js-intro-brand')
+        const introNameParts: NodeListOf<HTMLElement> = intro?.querySelectorAll(
+          '.js-intro-name-piece'
+        )
+        const introScan: HTMLElement = intro?.querySelector('.js-intro-scan')
+        const targetBrand: HTMLElement = document.querySelector('.js-brand-target')
+        const prefersReducedMotion = window.matchMedia(
+          '(prefers-reduced-motion: reduce)'
+        ).matches
+
+        const finalizeIntro = () => {
+          mount.style.opacity = '1'
+          intro.remove()
+
+          document.documentElement.classList.remove('is-scroll-blocked')
+
+          Ticker.nextTick(() => {
+            Emitter.emit('updateViewport')
+          })
+        }
+
+        if (!wrapper || !intro || !mount) {
+          document.dispatchEvent(new CustomEvent('intro'))
+          document.documentElement.classList.remove('is-scroll-blocked')
+          return
+        }
 
         const tl = gsap.timeline()
 
@@ -401,90 +432,128 @@ import '../styles/global.scss'
           opacity: '',
         })
 
-        tl.set(intro, {
-          background: 'transparent',
+        if (!introBrand || !targetBrand) {
+          tl.call(() => {
+            document.dispatchEvent(new CustomEvent('intro'))
+          })
+
+          tl.to(intro, {
+            autoAlpha: 0,
+            duration: 0.3,
+            ease: 'power2.out',
+          })
+
+          tl.call(finalizeIntro)
+          return
+        }
+
+        tl.set(targetBrand, {
+          opacity: 0,
         })
 
+        const sourceRect = introBrand.getBoundingClientRect()
+        const targetRect = targetBrand.getBoundingClientRect()
+
+        const sourceCenterX = sourceRect.left + sourceRect.width * 0.5
+        const sourceCenterY = sourceRect.top + sourceRect.height * 0.5
+        const targetCenterX = targetRect.left + targetRect.width * 0.5
+        const targetCenterY = targetRect.top + targetRect.height * 0.5
+
+        const deltaX = targetCenterX - sourceCenterX
+        const deltaY = targetCenterY - sourceCenterY
+        const scale = targetRect.width / Math.max(sourceRect.width, 1)
+
+        if (prefersReducedMotion) {
+          tl.set(introBrand, {
+            x: deltaX,
+            y: deltaY,
+            scale,
+          })
+
+          tl.call(() => {
+            targetBrand.style.opacity = '1'
+            document.dispatchEvent(new CustomEvent('intro'))
+          })
+
+          tl.to(intro, {
+            autoAlpha: 0,
+            duration: 0.15,
+            ease: 'none',
+          })
+
+          tl.call(finalizeIntro)
+          return
+        }
+
         tl.fromTo(
-          logoLinesV,
+          introBrand,
           {
-            scaleY: 0,
+            autoAlpha: 0,
+            y: 28,
+            scale: 0.925,
           },
           {
-            scaleY: 1,
-            duration: 1,
-            ease: 'power4.inOut',
-            stagger: 0.15,
+            autoAlpha: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.95,
+            ease: 'expo.out',
           },
           0
         )
 
         tl.fromTo(
-          logoLinesH,
+          introNameParts,
           {
-            scaleX: 0,
+            yPercent: 115,
           },
           {
+            yPercent: 0,
+            duration: 0.8,
+            ease: 'power3.out',
+            stagger: 0.08,
+          },
+          0.2
+        )
+
+        tl.fromTo(
+          introScan,
+          {
+            autoAlpha: 0,
+            scaleX: 0,
+            xPercent: -50,
+          },
+          {
+            autoAlpha: 0.8,
             scaleX: 1,
-            duration: 0.4,
-            ease: 'power4.inOut',
-            stagger: 0,
+            xPercent: 0,
+            duration: 0.6,
+            ease: 'power2.out',
           },
-          1
+          0.45
         )
 
-        tl.set(logoLinesV, {
-          transformOrigin: '50% 0',
-        })
-
-        tl.fromTo(
-          logoLinesV,
+        tl.to(
+          introScan,
           {
-            scaleY: 1,
+            xPercent: 70,
+            autoAlpha: 0,
+            duration: 0.7,
+            ease: 'power2.in',
           },
-          {
-            scaleY: 0,
-            duration: 1,
-            ease: 'power4.in',
-            immediateRender: false,
-            stagger: 0.1,
-          },
-          2
+          1.05
         )
 
-        tl.fromTo(
-          logoLinesH,
+        tl.to(
+          introBrand,
           {
-            scaleY: 1,
+            x: deltaX,
+            y: deltaY,
+            scale,
+            duration: 1.3,
+            ease: 'expo.inOut',
           },
-          {
-            scaleY: 0,
-            duration: 0.5,
-            ease: 'power4.in',
-            immediateRender: false,
-            stagger: 0.1,
-          },
-          2.1
-        )
-
-        tl.from(
-          borderTop,
-          {
-            scaleY: 0,
-            duration: 3,
-            ease: 'power3.inOut',
-          },
-          1
-        )
-
-        tl.from(
-          [borderLeft, borderRight],
-          {
-            scaleX: 0,
-            duration: 3,
-            ease: 'power3.inOut',
-          },
-          1
+          1.25
         )
 
         tl.call(
@@ -492,23 +561,38 @@ import '../styles/global.scss'
             document.dispatchEvent(new CustomEvent('intro'))
           },
           null,
-          '-=1.85'
+          2.2
         )
 
         tl.call(
           () => {
-            mount.style.opacity = '1'
-            intro.remove()
-
-            document.documentElement.classList.remove('is-scroll-blocked')
-
-            Ticker.nextTick(() => {
-              Emitter.emit('updateViewport')
-            })
+            targetBrand.style.opacity = '1'
           },
           null,
-          5
+          2.55
         )
+
+        tl.to(
+          introBrand,
+          {
+            autoAlpha: 0,
+            duration: 0.25,
+            ease: 'power2.out',
+          },
+          2.55
+        )
+
+        tl.to(
+          intro,
+          {
+            autoAlpha: 0,
+            duration: 0.5,
+            ease: 'power2.out',
+          },
+          2.55
+        )
+
+        tl.call(finalizeIntro, null, 3.05)
       }
     }
 
@@ -561,131 +645,98 @@ import '../styles/global.scss'
 
     .site-intro {
       position: fixed;
-      top: 0;
-      left: 0;
-      z-index: 50;
+      inset: 0;
+      z-index: 60;
+      display: grid;
+      place-items: center;
+      background: #000;
+      overflow: hidden;
 
-      width: 100%;
-      height: 100%;
-
-      background: color(primary);
-
-      .sb-logo {
+      &::before {
         position: absolute;
-        top: 50%;
-        left: 50%;
+        inset: -30%;
 
-        width: 3rem;
-        height: 3rem;
+        background:
+          radial-gradient(circle at 35% 45%, rgba(255, 255, 255, 0.08), transparent 36%),
+          radial-gradient(circle at 65% 55%, rgba(255, 255, 255, 0.08), transparent 36%),
+          linear-gradient(115deg, rgba(255, 255, 255, 0.04), transparent 55%);
+        opacity: 0.75;
+        pointer-events: none;
 
-        transform: translate3d(-50%, -50%, 0);
+        content: '';
+      }
 
-        @include mq(phone) {
-          width: 1.875rem;
-          height: 1.875rem;
-        }
+      .site-intro__brand {
+        position: relative;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: clamp(0.8rem, 1.6vw, 1.35rem);
 
-        .sb__path {
-          position: absolute;
+        color: #fff;
 
-          background: color(secondary);
+        will-change: transform, opacity, color;
+      }
 
-          &--v {
-            top: 0;
+      .site-intro__mark {
+        display: block;
 
-            width: 14.2857%;
-            height: 100%;
+        width: clamp(2.25rem, 5.2vw, 4.2rem);
+        height: auto;
 
-            transform-origin: 50% 100%;
+        color: currentColor;
+        flex-shrink: 0;
+      }
 
-            &-1 {
-              left: 0;
-            }
+      .site-intro__name {
+        display: inline-flex;
+        gap: 0.38rem;
+        white-space: nowrap;
 
-            &-2 {
-              left: 21.3214%;
-            }
+        font: 700 clamp(2rem, 6vw, 5rem) / 0.86 font-family(bigger);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
 
-            &-3 {
-              left: 43.2143%;
-            }
+      .site-intro__name-piece {
+        display: block;
+        overflow: hidden;
 
-            &-4 {
-              left: 64.7857%;
-            }
-
-            &-5 {
-              right: 0;
-            }
-          }
-
-          &--h {
-            width: 7.5%;
-            height: 6%;
-
-            &-1 {
-              top: 0;
-              left: 14.2857%;
-
-              transform-origin: 100% 0;
-            }
-
-            &-2 {
-              left: 57.5%;
-              top: 0;
-
-              transform-origin: 0 0;
-            }
-
-            &-3 {
-              right: 14.2857%;
-              top: 0;
-
-              transform-origin: 0% 0;
-            }
-          }
+        > span {
+          display: block;
         }
       }
 
-      &__border {
-        --width: 1rem;
-
+      .site-intro__scan {
         position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 1;
 
-        background: color(secondary);
+        width: min(72vw, 44rem);
+        height: 2px;
 
-        @include mq(phone) {
-          --width: 0.5rem;
+        background: linear-gradient(90deg, transparent, #fff, transparent);
+        transform: translate3d(-50%, -50%, 0);
+        transform-origin: 0 50%;
+        opacity: 0;
+
+        pointer-events: none;
+      }
+
+      @include mq(phone) {
+        .site-intro__brand {
+          gap: 0.55rem;
         }
 
-        &--top {
-          top: 0;
-          left: 0;
-
-          width: 100%;
-          height: var(--width);
-
-          transform-origin: 50% 0;
+        .site-intro__name {
+          gap: 0.25rem;
+          font-size: clamp(1.35rem, 7vw, 2rem);
+          letter-spacing: 0.03em;
         }
 
-        &--left,
-        &--right {
-          top: 0;
-          left: 0;
-
-          width: var(--width);
-          height: 100%;
-        }
-
-        &--left {
-          transform-origin: 0 50%;
-        }
-
-        &--right {
-          left: auto;
-          right: 0;
-
-          transform-origin: 100% 50%;
+        .site-intro__scan {
+          width: min(86vw, 24rem);
         }
       }
     }

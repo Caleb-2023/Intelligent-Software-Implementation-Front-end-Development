@@ -1,9 +1,9 @@
 <header class="site-head" data-intersect>
   <div class="site-head__container">
-    <div class="sb-logo">
+    <div class="sb-brand js-brand-target">
       <a href="/" aria-label="AuraMirror Home">
         <svg
-          class="js-logo"
+          class="sb-brand__mark js-logo"
           width="280"
           height="280"
           viewBox="0 0 280 280"
@@ -18,6 +18,11 @@
           <path d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z" fill="currentColor">
           </path>
         </svg>
+
+        <span class="sb-brand__name" aria-hidden="true">
+          <span>Aura</span>
+          <span>Mirror</span>
+        </span>
       </a>
     </div>
   </div>
@@ -195,38 +200,17 @@
     }
 
     intro() {
-      const logo = this.el.querySelector('.js-logo')
-      if (!logo) return
-
       const tl = gsap.timeline()
 
-      tl.set(this.el, {
-        opacity: 1,
-      })
-
-      tl.from(
+      tl.to(
         this.el,
         {
-          y: '-100%',
-          duration: 1.5,
-          ease: 'expo.inOut',
+          opacity: 1,
+          duration: 0.45,
+          ease: 'power2.out',
         },
-        1
+        0
       )
-
-      tl.from(
-        logo,
-        {
-          y: '-100%',
-          duration: 1.5,
-          ease: 'expo.out',
-        },
-        1.5
-      )
-
-      tl.set(this.el, {
-        clearProps: 'transform',
-      })
     }
   }
 
@@ -253,30 +237,57 @@
       }
     }
 
-    .sb-logo {
-      @include flex(row, center, center);
-
-      width: 6rem;
-      height: 6rem;
-
+    .sb-brand {
       a {
+        @include flex(row, center, center);
+
+        gap: 1rem;
+
         color: color(secondary);
         text-decoration: none;
       }
 
-      @include mq(phone) {
-        width: 4rem;
-        height: 4rem;
-      }
-
-      svg {
+      .sb-brand__mark {
         width: 3rem;
         height: 3rem;
         color: color(secondary);
+      }
 
-        @include mq(phone) {
+      .sb-brand__name {
+        @include flex(row, center, center);
+
+        gap: 0.4rem;
+        margin-top: 0.05em;
+
+        font: 700 1.45rem / 0.86 font-family(bigger);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      @include mq(tablet) {
+        a {
+          gap: 0.7rem;
+        }
+
+        .sb-brand__name {
+          font-size: 1.25rem;
+        }
+      }
+
+      @include mq(phone) {
+        a {
+          gap: 0.6rem;
+        }
+
+        .sb-brand__mark {
           width: 1.875rem;
           height: 1.875rem;
+        }
+
+        .sb-brand__name {
+          gap: 0.3rem;
+          font-size: 0.95rem;
         }
       }
     }
