@@ -10,10 +10,10 @@
       >
         <path
           d="M240.245 16.8V280h39.75V0h-160V280h39.755V16.8h19.8V280h39.755V16.8h19.8Z"
-          fill="#160000"
+          fill="currentColor"
         >
         </path>
-        <path d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z" fill="#160000">
+        <path d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z" fill="currentColor">
         </path>
       </svg>
 
@@ -37,10 +37,16 @@
     }
 
     &__logo {
+      a {
+        color: color(secondary);
+        text-decoration: none;
+      }
+
       svg {
         display: block;
         width: 3rem;
         height: 3rem;
+        color: color(secondary);
 
         @include mq(phone) {
           width: 1.875rem;
