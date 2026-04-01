@@ -55,8 +55,8 @@ import ASeparator from './ASeparator.astro'
   import Emitter from '../utils/Emitter'
   import Ticker from '../utils/Ticker'
 
-  import { gsap } from 'gsap'
-  import { SplitText } from 'gsap/SplitText'
+  import { gsap } from 'gsap/dist/gsap'
+  import { SplitText } from 'gsap/dist/SplitText'
   gsap.registerPlugin(SplitText)
 
   class Section {
@@ -166,12 +166,11 @@ import ASeparator from './ASeparator.astro'
       tl.from(
         authSlot,
         {
-          y: '15%',
-          opacity: 0,
-          duration: 1.1,
+          y: '-100%',
+          duration: 1.5,
           ease: 'expo.out',
         },
-        0.2
+        1.5
       )
 
       tl.fromTo(

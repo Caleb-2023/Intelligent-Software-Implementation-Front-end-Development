@@ -9,7 +9,11 @@
   @if $alpha != 1 {
     $value: map.get($theme-colors, $key);
     $alias: map.get($theme-colors, $value);
-    $color: if($alias, $alias, $value);
+    $color: $value;
+
+    @if $alias {
+      $color: $alias;
+    }
 
     @return rgba($color, $alpha);
   } @else {
