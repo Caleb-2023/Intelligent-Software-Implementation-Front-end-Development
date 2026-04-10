@@ -1,5 +1,18 @@
 ---
 import ASeparator from './ASeparator.astro'
+
+const authPreviewLines = [
+  {
+    mode: 'login',
+    label: 'Sign In',
+    chars: ['S', 'I', 'G', 'N', '&nbsp;', 'I', 'N'],
+  },
+  {
+    mode: 'register',
+    label: 'Sign Up',
+    chars: ['S', 'I', 'G', 'N', '&nbsp;', 'U', 'P'],
+  },
+]
 ---
 
 <div class="s-hero" data-intersect>
@@ -21,25 +34,37 @@ import ASeparator from './ASeparator.astro'
         </button>
 
         <div class="s__auth-preview js-auth-preview" aria-hidden="true">
-          <div class="s__auth-preview__line s__auth-preview__line--top">
-            <button
-              class="s__auth-preview__option js-auth-preview-option"
-              type="button"
-              data-auth-mode="login"
-            >
-              Sign In
-            </button>
-          </div>
-
-          <div class="s__auth-preview__line s__auth-preview__line--bottom">
-            <button
-              class="s__auth-preview__option js-auth-preview-option"
-              type="button"
-              data-auth-mode="register"
-            >
-              Sign Up
-            </button>
-          </div>
+          {
+            authPreviewLines.map((line, index) => (
+              <div
+                class:list={[
+                  's__auth-preview__line',
+                  `s__auth-preview__line--${index === 0 ? 'top' : 'bottom'}`,
+                ]}
+              >
+                <button
+                  class="s__auth-preview__option js-auth-preview-option"
+                  type="button"
+                  data-auth-mode={line.mode}
+                  aria-label={line.label}
+                >
+                  <span class="s__auth-preview__word">
+                    {line.chars.map((char) => (
+                      <span class="s__auth-preview__char">
+                        {['', '', '', ''].map((_, sliceIndex) => (
+                          <span
+                            class="s__auth-preview__char__slice"
+                            data-slice={sliceIndex + 1}
+                            set:html={char}
+                          />
+                        ))}
+                      </span>
+                    ))}
+                  </span>
+                </button>
+              </div>
+            ))
+          }
 
           <div class="s__auth-preview__dots"></div>
         </div>
@@ -817,11 +842,12 @@ import ASeparator from './ASeparator.astro'
       position: absolute;
       left: 50%;
       z-index: 2;
-      width: 72%;
+      width: 84%;
       display: flex;
       justify-content: center;
       transform: translateX(-50%) scale(0.55);
       opacity: 0;
+      overflow: visible;
       transition:
         transform 0.7s ease(out-quint) 0.12s,
         opacity 0.35s ease 0.12s;
@@ -835,7 +861,7 @@ import ASeparator from './ASeparator.astro'
       }
 
       @include mq(phone) {
-        width: 76%;
+        width: 88%;
 
         &--top {
           top: 36%;
@@ -844,6 +870,45 @@ import ASeparator from './ASeparator.astro'
         &--bottom {
           top: 55%;
         }
+      }
+    }
+
+    @keyframes s-auth-char-up-down {
+      0% {
+        transform: translate3d(0, 0, 0);
+        animation-timing-function: ease(out-cubic);
+      }
+
+      25% {
+        transform: translate3d(0, -52%, 0);
+        animation-timing-function: ease(in-out-cubic);
+      }
+
+      75% {
+        transform: translate3d(0, 52%, 0);
+        animation-timing-function: ease(in-cubic);
+      }
+
+      100% {
+        transform: translate3d(0, 0, 0);
+      }
+    }
+
+    @keyframes s-auth-char-toggle {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      50.01% {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 0;
       }
     }
 
@@ -862,12 +927,13 @@ import ASeparator from './ASeparator.astro'
       color: inherit;
       cursor: pointer;
       padding: 0;
-      font: 700 clamp(2rem, 7vw, 4rem) / 0.92 font-family(bigger);
+      font: 700 clamp(2.8rem, 9vw, 5.4rem) / 0.9 font-family(bigger);
       letter-spacing: 0.04em;
       text-transform: uppercase;
       transition:
         transform 0.25s ease,
         opacity 0.25s ease;
+      overflow: visible;
 
       &:hover,
       &:focus-visible {
@@ -877,7 +943,62 @@ import ASeparator from './ASeparator.astro'
       }
 
       @include mq(phone) {
-        font-size: clamp(1.5rem, 9vw, 2.3rem);
+        font-size: clamp(2rem, 11vw, 3rem);
+      }
+    }
+
+    .s__auth-preview__word {
+      @include flex(row, flex-start, center);
+
+      height: 0.9em;
+      overflow: visible;
+    }
+
+    .s__auth-preview__char {
+      position: relative;
+      height: 100%;
+      overflow: visible;
+
+      @for $i from 1 through 7 {
+        &:nth-child(#{$i}) {
+          --delay: #{$i * 0.08 + 's'};
+        }
+      }
+    }
+
+    .s__auth-preview__char__slice {
+      --offset: 0s;
+      --move-delay: calc(var(--delay) + var(--offset));
+      --toggle-delay: calc(var(--delay) + var(--offset) + 0.46s);
+
+      position: relative;
+      display: block;
+      height: 100%;
+      animation: s-auth-char-up-down 2s infinite var(--move-delay);
+      will-change: transform, opacity;
+
+      &:not(:first-child) {
+        position: absolute;
+        top: 0;
+        left: 0;
+        animation:
+          s-auth-char-up-down 2s infinite var(--move-delay),
+          s-auth-char-toggle 2s linear infinite var(--toggle-delay);
+      }
+
+      &[data-slice='2'] {
+        --offset: 0.14s;
+        clip-path: inset(0 0 calc(100% - 0.03em) 0);
+      }
+
+      &[data-slice='3'] {
+        --offset: 0.1s;
+        clip-path: inset(0 0 calc(100% - 0.06em) 0);
+      }
+
+      &[data-slice='4'] {
+        --offset: 0.06s;
+        clip-path: inset(0 0 calc(100% - 0.09em) 0);
       }
     }
 
