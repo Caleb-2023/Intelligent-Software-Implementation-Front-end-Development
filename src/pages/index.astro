@@ -116,9 +116,15 @@ import '../styles/global.scss'
     </div><!-- .site-wrapper -->
 
     <div class="site-intro js-intro" aria-hidden="true">
+      <div class="site-intro__orbs js-intro-orbs">
+        <span class="site-intro__orb"></span>
+        <span class="site-intro__orb"></span>
+        <span class="site-intro__orb"></span>
+      </div>
+
       <div class="site-intro__brand js-intro-brand">
         <svg
-          class="site-intro__mark"
+          class="site-intro__mark js-intro-mark"
           width="280"
           height="280"
           viewBox="0 0 280 280"
@@ -127,11 +133,32 @@ import '../styles/global.scss'
           aria-hidden="true"
         >
           <path
+            class="js-intro-stroke"
+            d="M240.245 16.8V280h39.75V0h-160V280h39.755V16.8h19.8V280h39.755V16.8h19.8Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+          </path>
+          <path
+            class="js-intro-stroke"
+            d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+          </path>
+          <path
+            class="js-intro-fill"
             d="M240.245 16.8V280h39.75V0h-160V280h39.755V16.8h19.8V280h39.755V16.8h19.8Z"
             fill="currentColor"
           >
           </path>
-          <path d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z" fill="currentColor">
+          <path
+            class="js-intro-fill"
+            d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z"
+            fill="currentColor"
+          >
           </path>
         </svg>
 
@@ -145,7 +172,7 @@ import '../styles/global.scss'
         </div>
       </div><!-- .site-intro__brand -->
 
-      <div class="site-intro__scan js-intro-scan"></div>
+      <div class="site-intro__line js-intro-line"></div>
     </div><!-- .site-intro -->
 
     <div class="site-mount js-mount"></div>
@@ -403,7 +430,16 @@ import '../styles/global.scss'
         const introNameParts: NodeListOf<HTMLElement> = intro?.querySelectorAll(
           '.js-intro-name-piece'
         )
-        const introScan: HTMLElement = intro?.querySelector('.js-intro-scan')
+        const introStrokes: NodeListOf<SVGPathElement> = intro?.querySelectorAll(
+          '.js-intro-stroke'
+        )
+        const introFills: NodeListOf<SVGPathElement> = intro?.querySelectorAll(
+          '.js-intro-fill'
+        )
+        const introLine: HTMLElement = intro?.querySelector('.js-intro-line')
+        const introOrbs: NodeListOf<HTMLElement> = intro?.querySelectorAll(
+          '.site-intro__orb'
+        )
         const targetBrand: HTMLElement = document.querySelector('.js-brand-target')
         const prefersReducedMotion = window.matchMedia(
           '(prefers-reduced-motion: reduce)'
@@ -451,6 +487,18 @@ import '../styles/global.scss'
           opacity: 0,
         })
 
+        // Prepare SVG stroke-draw
+        introStrokes.forEach((path) => {
+          const len = path.getTotalLength()
+          gsap.set(path, {
+            strokeDasharray: len,
+            strokeDashoffset: len,
+          })
+        })
+
+        // Hide fills initially
+        gsap.set(introFills, { opacity: 0 })
+
         const sourceRect = introBrand.getBoundingClientRect()
         const targetRect = targetBrand.getBoundingClientRect()
 
@@ -470,6 +518,9 @@ import '../styles/global.scss'
             scale,
           })
 
+          gsap.set(introFills, { opacity: 1 })
+          gsap.set(introStrokes, { opacity: 0 })
+
           tl.call(() => {
             targetBrand.style.opacity = '1'
             document.dispatchEvent(new CustomEvent('intro'))
@@ -485,63 +536,139 @@ import '../styles/global.scss'
           return
         }
 
+        /* ── Phase 1: Ambient orbs fade in ── */
         tl.fromTo(
-          introBrand,
-          {
-            autoAlpha: 0,
-            y: 28,
-            scale: 0.925,
-          },
+          introOrbs,
+          { autoAlpha: 0, scale: 0.4 },
           {
             autoAlpha: 1,
-            y: 0,
             scale: 1,
-            duration: 0.95,
-            ease: 'expo.out',
+            duration: 1.6,
+            ease: 'power1.out',
+            stagger: 0.2,
           },
           0
         )
 
-        tl.fromTo(
-          introNameParts,
+        /* ── Phase 2: SVG stroke-draw reveal ── */
+        tl.to(
+          introStrokes,
           {
-            yPercent: 115,
+            strokeDashoffset: 0,
+            duration: 1.4,
+            ease: 'power2.inOut',
+            stagger: 0.15,
           },
-          {
-            yPercent: 0,
-            duration: 0.8,
-            ease: 'power3.out',
-            stagger: 0.08,
-          },
-          0.2
+          0.3
         )
 
-        tl.fromTo(
-          introScan,
+        /* ── Phase 3: Light sweep triggers stroke→fill + name reveal ── */
+
+        // 3a — Line sweeps in from left
+        if (introLine) {
+          tl.fromTo(
+            introLine,
+            {
+              xPercent: -100,
+              autoAlpha: 0,
+            },
+            {
+              xPercent: -30,
+              autoAlpha: 1,
+              duration: 0.6,
+              ease: 'power2.in',
+            },
+            1.5
+          )
+        }
+
+        // 3b — As line crosses the logo, strokes dissolve and fills appear
+        tl.to(
+          introStrokes,
           {
-            autoAlpha: 0,
-            scaleX: 0,
-            xPercent: -50,
+            opacity: 0,
+            duration: 0.5,
+            ease: 'power1.in',
           },
-          {
-            autoAlpha: 0.8,
-            scaleX: 1,
-            xPercent: 0,
-            duration: 0.6,
-            ease: 'power2.out',
-          },
-          0.45
+          1.8
         )
 
         tl.to(
-          introScan,
+          introFills,
           {
-            xPercent: 70,
-            autoAlpha: 0,
-            duration: 0.7,
-            ease: 'power2.in',
+            opacity: 1,
+            duration: 0.6,
+            ease: 'power1.out',
           },
-          1.05
+          1.8
+        )
+
+        // 3c — Line continues sweeping right, simultaneously name reveals
+        if (introLine) {
+          tl.to(
+            introLine,
+            {
+              xPercent: 0,
+              duration: 0.8,
+              ease: 'power2.out',
+            },
+            2.1
+          )
+        }
+
+        tl.fromTo(
+          introNameParts,
+          {
+            yPercent: 120,
+            opacity: 0,
+            filter: 'blur(8px)',
+          },
+          {
+            yPercent: 0,
+            opacity: 1,
+            filter: 'blur(0px)',
+            duration: 0.9,
+            ease: 'expo.out',
+            stagger: 0.12,
+          },
+          2.15
+        )
+
+        // 3d — Line exits to the right as orbs pulse outward
+        if (introLine) {
+          tl.to(
+            introLine,
+            {
+              xPercent: 100,
+              autoAlpha: 0,
+              duration: 0.7,
+              ease: 'power2.in',
+            },
+            2.9
+          )
+        }
+
+        tl.to(
+          introOrbs,
+          {
+            scale: 1.2,
+            duration: 0.7,
+            ease: 'power1.out',
+          },
+          2.9
+        )
+
+        /* ── Phase 4: Hold, then brand morphs to header ── */
+        tl.to(
+          introOrbs,
+          {
+            autoAlpha: 0,
+            scale: 1.5,
+            duration: 0.8,
+            ease: 'power1.in',
+            stagger: 0.05,
+          },
+          3.4
         )
 
         tl.to(
@@ -550,10 +677,21 @@ import '../styles/global.scss'
             x: deltaX,
             y: deltaY,
             scale,
-            duration: 1.3,
+            duration: 1.4,
             ease: 'expo.inOut',
           },
-          1.25
+          3.8
+        )
+
+        /* ── Phase 5: Smooth crossfade to page ── */
+        tl.to(
+          intro,
+          {
+            backgroundColor: 'transparent',
+            duration: 0.8,
+            ease: 'power2.inOut',
+          },
+          4.2
         )
 
         tl.call(
@@ -561,7 +699,7 @@ import '../styles/global.scss'
             document.dispatchEvent(new CustomEvent('intro'))
           },
           null,
-          2.2
+          4.5
         )
 
         tl.call(
@@ -569,30 +707,30 @@ import '../styles/global.scss'
             targetBrand.style.opacity = '1'
           },
           null,
-          2.55
+          4.8
         )
 
         tl.to(
           introBrand,
           {
             autoAlpha: 0,
-            duration: 0.25,
+            duration: 0.3,
             ease: 'power2.out',
           },
-          2.55
+          4.8
         )
 
         tl.to(
           intro,
           {
             autoAlpha: 0,
-            duration: 0.5,
+            duration: 0.35,
             ease: 'power2.out',
           },
-          2.55
+          4.9
         )
 
-        tl.call(finalizeIntro, null, 3.05)
+        tl.call(finalizeIntro, null, 5.25)
       }
     }
 
@@ -652,18 +790,43 @@ import '../styles/global.scss'
       background: #000;
       overflow: hidden;
 
-      &::before {
+      .site-intro__orbs {
         position: absolute;
-        inset: -30%;
-
-        background:
-          radial-gradient(circle at 35% 45%, rgba(255, 255, 255, 0.08), transparent 36%),
-          radial-gradient(circle at 65% 55%, rgba(255, 255, 255, 0.08), transparent 36%),
-          linear-gradient(115deg, rgba(255, 255, 255, 0.04), transparent 55%);
-        opacity: 0.75;
+        inset: 0;
         pointer-events: none;
+        z-index: 0;
+      }
 
-        content: '';
+      .site-intro__orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        will-change: transform, opacity;
+
+        &:nth-child(1) {
+          width: min(50vw, 28rem);
+          height: min(50vw, 28rem);
+          top: 20%;
+          left: 15%;
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.07) 0%, transparent 70%);
+        }
+
+        &:nth-child(2) {
+          width: min(40vw, 22rem);
+          height: min(40vw, 22rem);
+          bottom: 20%;
+          right: 15%;
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+        }
+
+        &:nth-child(3) {
+          width: min(30vw, 16rem);
+          height: min(30vw, 16rem);
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.09) 0%, transparent 65%);
+        }
       }
 
       .site-intro__brand {
@@ -690,10 +853,12 @@ import '../styles/global.scss'
 
       .site-intro__name {
         display: inline-flex;
+        align-items: center;
         gap: 0.38rem;
         white-space: nowrap;
+        transform: translateY(0.06em);
 
-        font: 700 clamp(2rem, 6vw, 5rem) / 0.86 font-family(bigger);
+        font: 700 clamp(2rem, 6vw, 5rem) / 1.1 font-family(bigger);
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }
@@ -701,26 +866,36 @@ import '../styles/global.scss'
       .site-intro__name-piece {
         display: block;
         overflow: hidden;
+        padding-block: 0.08em;
 
         > span {
           display: block;
+          will-change: transform, opacity, filter;
         }
       }
 
-      .site-intro__scan {
+      .site-intro__line {
         position: absolute;
         top: 50%;
-        left: 50%;
-        z-index: 1;
+        left: 0;
+        z-index: 3;
+        transform: translateY(-50%);
+        transform-origin: left center;
 
-        width: min(72vw, 44rem);
+        width: 100%;
         height: 2px;
 
-        background: linear-gradient(90deg, transparent, #fff, transparent);
-        transform: translate3d(-50%, -50%, 0);
-        transform-origin: 0 50%;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.3) 15%,
+          rgba(255, 255, 255, 0.9) 45%,
+          #fff 50%,
+          rgba(255, 255, 255, 0.9) 55%,
+          rgba(255, 255, 255, 0.3) 85%,
+          transparent 100%
+        );
         opacity: 0;
-
         pointer-events: none;
       }
 
@@ -735,8 +910,23 @@ import '../styles/global.scss'
           letter-spacing: 0.03em;
         }
 
-        .site-intro__scan {
-          width: min(86vw, 24rem);
+        .site-intro__orb {
+          filter: blur(60px);
+
+          &:nth-child(1) {
+            width: min(60vw, 16rem);
+            height: min(60vw, 16rem);
+          }
+
+          &:nth-child(2) {
+            width: min(50vw, 14rem);
+            height: min(50vw, 14rem);
+          }
+
+          &:nth-child(3) {
+            width: min(40vw, 10rem);
+            height: min(40vw, 10rem);
+          }
         }
       }
     }

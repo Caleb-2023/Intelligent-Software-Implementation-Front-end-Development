@@ -149,7 +149,7 @@ function syncOverlayLock() {
   const hasOpenOverlay =
     Boolean(stylingOverlay && !stylingOverlay.hidden) ||
     Boolean(aiOverlay && !aiOverlay.hidden) ||
-    Boolean(authOverlay && !authOverlay.hidden)
+    Boolean(authOverlay && authOverlay.dataset.open === 'true')
 
   document.documentElement.classList.toggle('am-overlay-open', hasOpenOverlay)
 
@@ -1203,22 +1203,17 @@ function bindAuthOverlay() {
 
   const openOverlay = (mode = state.authMode || 'login') => {
     switchAuthTab(mode)
-    overlay.hidden = false
-    overlay.setAttribute('aria-hidden', 'false')
-    authButton?.setAttribute('aria-expanded', 'true')
+    document.dispatchEvent(new CustomEvent('auth-panel-open'))
     syncOverlayLock()
     updateAuthStatus(
       mode === 'register'
         ? 'Create an account to connect remote wardrobe services.'
         : 'Sign in to connect the live wardrobe, remote try-on, and recommendation APIs.'
     )
-    closeButton?.focus()
   }
 
   const closeOverlay = (focusTarget = null) => {
-    overlay.hidden = true
-    overlay.setAttribute('aria-hidden', 'true')
-    authButton?.setAttribute('aria-expanded', 'false')
+    document.dispatchEvent(new CustomEvent('auth-panel-close'))
     syncOverlayLock()
 
     if (focusTarget instanceof HTMLElement) {
@@ -1247,17 +1242,8 @@ function bindAuthOverlay() {
     closeOverlay()
   })
 
-  overlay.addEventListener('click', (event) => {
-    if (
-      event.target instanceof Element &&
-      event.target.hasAttribute('data-am-close-auth')
-    ) {
-      closeOverlay()
-    }
-  })
-
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !overlay.hidden) {
+    if (event.key === 'Escape' && overlay.dataset.open === 'true') {
       closeOverlay()
     }
   })
