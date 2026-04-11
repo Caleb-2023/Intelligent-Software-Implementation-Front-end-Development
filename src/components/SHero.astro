@@ -35,16 +35,22 @@ const authPreviewLines = [
       </div>
     </div>
 
-    <div class="s__auth-action" data-auth-action="signout" hidden>
-      <div class="s__auth-hover">
-        <div class="s__auth-btn">
-          <div class="s__auth-btn__inner">
-            <div class="s__auth-btn__text am-auth-nav-button" aria-label="Sign Out">
-              Out
-            </div>
-          </div>
-        </div>
-      </div>
+    <div class="s__auth-greeting" data-auth-greeting hidden aria-hidden="true">
+      <p id="am-auth-greeting-line-1" class="s__auth-greeting-line s__auth-greeting-line--lead">
+        Aura Member, good evening.
+      </p>
+      <p id="am-auth-greeting-line-2" class="s__auth-greeting-line">
+        Ready to style your outfit for today?
+      </p>
+      <button
+        id="am-open-dashboard"
+        class="s__auth-dashboard-button"
+        type="button"
+        hidden
+        data-dashboard-trigger
+      >
+        Dashboard
+      </button>
     </div>
   </div>
 
@@ -282,6 +288,18 @@ const authPreviewLines = [
     authPulseTl: gsap.core.Timeline
     authIsOpen: boolean
     authPreviewIsOpen: boolean
+    authGreeting: HTMLElement
+    authGreetingLine1: HTMLElement
+    authGreetingLine2: HTMLElement
+    greetingReady: boolean
+    greetingPayload: {
+      active: boolean
+      line1: string
+      line2: string
+    }
+    greetingSignature: string
+    greetingTimers: number[]
+    greetingRunId: number
 
     constructor() {
       this.el = document.querySelector('.s-hero')
@@ -289,6 +307,15 @@ const authPreviewLines = [
 
       this.isPaused = true
       this.isWaiting = true
+      this.greetingReady = false
+      this.greetingPayload = {
+        active: false,
+        line1: '',
+        line2: '',
+      }
+      this.greetingSignature = ''
+      this.greetingTimers = []
+      this.greetingRunId = 0
 
       if (document.readyState === 'complete') {
         Ticker.nextTick(this.init, this)
@@ -300,6 +327,7 @@ const authPreviewLines = [
     init() {
       this.splitWords()
       this.initAuthButton()
+      this.initGreeting()
       this.bindEvents()
     }
 
@@ -311,6 +339,11 @@ const authPreviewLines = [
       this.el.addEventListener('intersect', this.onIntersect.bind(this), {
         passive: true,
       })
+
+      document.addEventListener(
+        'am:greeting-update',
+        this.onGreetingUpdate.bind(this)
+      )
 
       Emitter.on('tick', this.tick, this)
     }
@@ -428,7 +461,158 @@ const authPreviewLines = [
 
       tl.call(() => {
         this.isWaiting = false
+        this.greetingReady = true
+        this.syncGreetingFromDom()
+        this.playGreetingIfReady()
       })
+    }
+
+    initGreeting() {
+      this.authGreeting = this.el.querySelector('[data-auth-greeting]')
+      this.authGreetingLine1 = document.getElementById('am-auth-greeting-line-1')
+      this.authGreetingLine2 = document.getElementById('am-auth-greeting-line-2')
+
+      this.syncGreetingFromDom()
+    }
+
+    syncGreetingFromDom() {
+      if (!this.authGreeting || !this.authGreetingLine1 || !this.authGreetingLine2) {
+        return
+      }
+
+      this.greetingPayload = {
+        active: document.documentElement.classList.contains('am-authenticated'),
+        line1:
+          this.authGreeting.dataset.line1 ||
+          this.authGreetingLine1.textContent ||
+          '',
+        line2:
+          this.authGreeting.dataset.line2 ||
+          this.authGreetingLine2.textContent ||
+          '',
+      }
+
+      if (this.greetingPayload.active) {
+        this.clearGreetingLines()
+      }
+    }
+
+    onGreetingUpdate(event: Event) {
+      const detail = (event as CustomEvent)?.detail || {}
+
+      this.greetingPayload = {
+        active: Boolean(detail.active),
+        line1: String(detail.line1 || ''),
+        line2: String(detail.line2 || ''),
+      }
+
+      if (!this.greetingPayload.active) {
+        this.stopGreetingStream()
+        this.greetingSignature = ''
+        this.clearGreetingLines()
+        return
+      }
+
+      this.clearGreetingLines()
+      this.playGreetingIfReady()
+    }
+
+    clearGreetingLines() {
+      this.authGreetingLine1 && (this.authGreetingLine1.textContent = '')
+      this.authGreetingLine2 && (this.authGreetingLine2.textContent = '')
+    }
+
+    stopGreetingStream() {
+      this.greetingRunId += 1
+      this.greetingTimers.forEach((timerId) => {
+        window.clearTimeout(timerId)
+      })
+      this.greetingTimers = []
+    }
+
+    scheduleGreetingStep(callback, delay) {
+      const timerId = window.setTimeout(() => {
+        this.greetingTimers = this.greetingTimers.filter((id) => id !== timerId)
+        callback()
+      }, delay)
+
+      this.greetingTimers.push(timerId)
+    }
+
+    typeGreetingLine(node: HTMLElement, text: string, runId: number, delay: number, onDone?) {
+      if (!node) {
+        onDone?.()
+        return
+      }
+
+      node.textContent = ''
+
+      if (!text) {
+        onDone?.()
+        return
+      }
+
+      let index = 0
+
+      const step = () => {
+        if (this.greetingRunId !== runId) return
+
+        node.textContent += text.charAt(index)
+        index += 1
+
+        if (index < text.length) {
+          this.scheduleGreetingStep(step, delay)
+          return
+        }
+
+        onDone?.()
+      }
+
+      this.scheduleGreetingStep(step, delay)
+    }
+
+    playGreetingIfReady() {
+      if (
+        !this.greetingReady ||
+        !this.greetingPayload.active ||
+        !this.authGreetingLine1 ||
+        !this.authGreetingLine2
+      ) {
+        return
+      }
+
+      const signature = JSON.stringify(this.greetingPayload)
+
+      if (signature === this.greetingSignature) {
+        return
+      }
+
+      this.stopGreetingStream()
+      this.clearGreetingLines()
+
+      const runId = this.greetingRunId
+
+      this.scheduleGreetingStep(() => {
+        this.typeGreetingLine(
+          this.authGreetingLine1,
+          this.greetingPayload.line1,
+          runId,
+          42,
+          () => {
+            this.scheduleGreetingStep(() => {
+              this.typeGreetingLine(
+                this.authGreetingLine2,
+                this.greetingPayload.line2,
+                runId,
+                24,
+                () => {
+                  this.greetingSignature = signature
+                }
+              )
+            }, 220)
+          }
+        )
+      }, 240)
     }
 
     initAuthButton() {
@@ -724,6 +908,12 @@ const authPreviewLines = [
       :global(html.am-auth-preview-open) :global(.site-head) {
         z-index: 3;
       }
+
+      :global(html.am-authenticated) & {
+        .s__title {
+          display: none !important;
+        }
+      }
     }
 
     @include mq(phone) {
@@ -740,6 +930,76 @@ const authPreviewLines = [
 
       .s__auth-action[hidden] {
         display: none;
+      }
+    }
+
+    .s__auth-greeting {
+      display: grid;
+      gap: 0.75rem;
+      justify-items: center;
+      max-width: min(52rem, 88vw);
+      text-align: center;
+      color: color(secondary);
+
+      &[hidden] {
+        display: none;
+      }
+
+      @include mq(phone) {
+        max-width: 92vw;
+      }
+    }
+
+    .s__auth-greeting-line {
+      margin: 0;
+      font: 400 clamp(2.6rem, 6vw, 5.2rem) / 1.1 font-family(editorial);
+
+      &--lead {
+        font: 700 clamp(2rem, 4.5vw, 4rem) / 1.2 font-family(bigger);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      @include mq(phone) {
+        font-size: clamp(1.8rem, 8.2vw, 2.8rem);
+
+        &--lead {
+          font-size: clamp(0.9rem, 4vw, 1.1rem);
+        }
+      }
+    }
+
+    .s__auth-dashboard-button {
+      appearance: none;
+      border: 1px solid color(secondary);
+      background: color(secondary);
+      color: color(primary);
+      cursor: pointer;
+      padding: 0.9rem 1.3rem;
+      min-width: 10rem;
+      font: 700 0.8rem / 1 font-family(fraktion);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      transition:
+        transform 0.2s ease,
+        background 0.2s ease,
+        color 0.2s ease;
+
+      &[hidden] {
+        display: none;
+      }
+
+      &:hover,
+      &:focus-visible {
+        transform: translate3d(0, -2px, 0);
+        outline: none;
+        background: transparent;
+        color: color(secondary);
+      }
+
+      @include mq(phone) {
+        min-width: 8.5rem;
+        padding: 0.8rem 1rem;
       }
     }
     .s__auth-hover {

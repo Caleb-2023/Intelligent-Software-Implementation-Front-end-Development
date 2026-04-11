@@ -25,6 +25,7 @@ export const state = {
   authMode: 'login',
   authToken: '',
   authUser: null,
+  dashboardOpen: false,
   weatherContext: {
     ...DEFAULT_WEATHER_CONTEXT,
   },

@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   history: 'auramirror.recommendation.history.v1',
   apiToken: 'auramirror.api.token',
   authUser: 'auramirror.auth.user',
+  authUsers: 'auramirror.auth.users.v1',
 }
 export const API_ENDPOINTS = {
   cloths: `${API_BASE_URL}/cloths`,

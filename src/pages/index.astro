@@ -3,6 +3,7 @@ import SiteHead from '../components/SiteHead.astro'
 import SiteFoot from '../components/SiteFoot.astro'
 import SiteScrollbar from '../components/SiteScrollbar.astro'
 import SHero from '../components/SHero.astro'
+import SAccount from '../components/SAccount.astro'
 import SAbout from '../components/SAbout.astro'
 import SWork from '../components/SWork.astro'
 import SCTA from '../components/SCTA.astro'
@@ -101,6 +102,8 @@ import '../styles/global.scss'
       <SiteHead />
 
       <SHero />
+
+      <SAccount />
 
       <SAbout />
 
@@ -940,6 +943,22 @@ import '../styles/global.scss'
 
       @include mq(phone) {
         clip-path: inset(0 -0.5rem);
+      }
+    }
+
+    :global(html.am-dashboard-mode) {
+      .s-hero,
+      .s-about,
+      .s-work,
+      .s-cta,
+      .site-foot,
+      a-separator {
+        display: none !important;
+      }
+
+      .s-account {
+        display: block !important;
+        padding-top: 2rem;
       }
     }
 

@@ -1,0 +1,461 @@
+<section id="account" class="s-account" hidden aria-hidden="true">
+  <div class="s-account__shell">
+    <div class="s-account__frame">
+      <div class="s-account__toolbar">
+        <button
+          id="am-account-close"
+          class="s-account__close"
+          type="button"
+          data-dashboard-close
+        >
+          Close
+        </button>
+      </div>
+
+      <div class="s-account__hero">
+        <div class="s-account__copy">
+          <p class="s-account__eyebrow">Signed-In Interface</p>
+          <h2 class="s-account__title">
+            Control
+            <br />
+            Deck
+          </h2>
+          <p id="am-account-greeting" class="s-account__lede">
+            Your private styling workspace appears here after login.
+          </p>
+        </div>
+
+        <div class="s-account__identity">
+          <span class="s-account__identity-label">Profile</span>
+          <strong id="am-account-name" class="s-account__identity-name">
+            Aura Member
+          </strong>
+          <span id="am-account-email" class="s-account__identity-email">
+            you@example.com
+          </span>
+
+          <div class="s-account__identity-meta">
+            <div class="s-account__identity-row">
+              <span>Member Since</span>
+              <strong id="am-account-member-since">Today</strong>
+            </div>
+
+            <div class="s-account__identity-row">
+              <span>Session Mode</span>
+              <strong id="am-account-mode">Local Demo</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="s-account__grid">
+        <article class="s-account__card s-account__card--status">
+          <p class="s-account__card-eyebrow">System Pulse</p>
+
+          <div class="s-account__status-list">
+            <div class="s-account__status-row">
+              <span>Avatar</span>
+              <strong id="am-account-avatar-status">Waiting for portrait</strong>
+            </div>
+
+            <div class="s-account__status-row">
+              <span>Wardrobe</span>
+              <strong id="am-account-wardrobe-status">Demo wardrobe standby</strong>
+            </div>
+
+            <div class="s-account__status-row">
+              <span>Preview</span>
+              <strong id="am-account-preview-status">No try-on preview yet</strong>
+            </div>
+
+            <div class="s-account__status-row">
+              <span>Saved Looks</span>
+              <strong id="am-account-history-count">0 saved runs</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="s-account__card s-account__card--actions">
+          <p class="s-account__card-eyebrow">Quick Launch</p>
+
+          <div class="s-account__actions">
+            <button id="am-account-open-avatar" class="s-account__button" type="button">
+              Avatar Studio
+            </button>
+
+            <button id="am-account-open-wardrobe" class="s-account__button" type="button">
+              Open Wardrobe
+            </button>
+
+            <button id="am-account-open-ai" class="s-account__button" type="button">
+              AI Stylist
+            </button>
+
+            <button
+              id="am-account-open-history"
+              class="s-account__button s-account__button--ghost"
+              type="button"
+            >
+              View History
+            </button>
+
+            <button
+              id="am-account-signout"
+              class="s-account__button s-account__button--ghost"
+              type="button"
+              data-signout-trigger
+            >
+              Sign Out
+            </button>
+          </div>
+        </article>
+
+        <article class="s-account__card s-account__card--snapshot">
+          <p class="s-account__card-eyebrow">Session Snapshot</p>
+
+          <div class="s-account__snapshot-grid">
+            <div class="s-account__snapshot-box">
+              <span class="s-account__snapshot-label">Weather</span>
+              <strong id="am-account-weather" class="s-account__snapshot-value">
+                Fallback Studio / controlled / 22 C
+              </strong>
+            </div>
+
+            <div class="s-account__snapshot-box">
+              <span class="s-account__snapshot-label">Selection</span>
+              <strong id="am-account-selection-count" class="s-account__snapshot-value">
+                0 garments selected
+              </strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="s-account__card s-account__card--focus">
+          <p class="s-account__card-eyebrow">Next Move</p>
+          <p id="am-account-next-step" class="s-account__focus">
+            Upload a portrait photo first so the dashboard can unlock avatar and
+            preview actions.
+          </p>
+        </article>
+
+        <article class="s-account__card s-account__card--recommendation">
+          <p class="s-account__card-eyebrow">Latest Recommendation</p>
+          <div id="am-account-recommendation" class="s-account__recommendation">
+            Your first styling recommendation will be summarized here after the AI
+            Stylist runs.
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style lang="scss">
+  .s-account {
+    position: relative;
+    z-index: 3;
+
+    padding: 8rem 0 10rem;
+
+    background:
+      radial-gradient(circle at 15% 20%, rgba(244, 12, 63, 0.1), transparent 28%),
+      radial-gradient(circle at 85% 18%, rgba(22, 0, 0, 0.1), transparent 25%),
+      linear-gradient(180deg, rgba(22, 0, 0, 0.035), transparent 28%);
+
+    @include mq(phone) {
+      padding: 5rem 0 6rem;
+    }
+
+    &__shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+
+      @include mq(phone) {
+        padding: 0 0.75rem;
+      }
+    }
+
+    &__frame {
+      position: relative;
+      padding: 1rem;
+
+      border: 1px solid color(secondary);
+
+      background:
+        linear-gradient(180deg, rgba(244, 12, 63, 0.06), transparent 20%),
+        color(primary);
+      overflow: hidden;
+
+      &:before,
+      &:after {
+        position: absolute;
+        content: '';
+        pointer-events: none;
+      }
+
+      &:before {
+        inset: 1rem;
+        border: 1px solid rgba(22, 0, 0, 0.1);
+      }
+
+      &:after {
+        top: -15%;
+        right: -8rem;
+        width: 24rem;
+        height: 24rem;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(244, 12, 63, 0.12), transparent 70%);
+      }
+    }
+
+    &__toolbar {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 1rem;
+    }
+
+    &__close {
+      appearance: none;
+      border: 1px solid color(secondary);
+      background: transparent;
+      color: color(secondary);
+      cursor: pointer;
+      padding: 0.75rem 1rem;
+      font: 700 0.74rem / 1 font-family(fraktion);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition:
+        transform 0.2s ease,
+        background 0.2s ease,
+        color 0.2s ease;
+
+      &:hover,
+      &:focus-visible {
+        transform: translate3d(0, -2px, 0);
+        outline: none;
+        background: color(secondary);
+        color: color(primary);
+      }
+    }
+
+    &__hero {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+      gap: 1rem;
+      margin-bottom: 1rem;
+
+      @include mq(tablet) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    &__copy,
+    &__identity,
+    &__card {
+      border: 1px solid color(secondary);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.4)),
+        rgba(244, 12, 63, 0.04);
+    }
+
+    &__copy {
+      padding: 1.4rem;
+    }
+
+    &__identity {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      padding: 1.4rem;
+      background:
+        radial-gradient(circle at top right, rgba(244, 12, 63, 0.18), transparent 42%),
+        rgba(22, 0, 0, 0.92);
+
+      color: color(primary);
+    }
+
+    &__eyebrow,
+    &__card-eyebrow,
+    &__identity-label,
+    &__snapshot-label {
+      margin: 0;
+      font: 700 0.74rem / 1 font-family(fraktion);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    &__title {
+      margin: 0.4rem 0 0.9rem;
+      font: 700 clamp(3.5rem, 9vw, 7.25rem) / 0.82 font-family(bigger);
+      text-transform: uppercase;
+    }
+
+    &__lede,
+    &__identity-email,
+    &__recommendation,
+    &__focus,
+    &__snapshot-value,
+    &__status-row strong,
+    &__identity-row strong,
+    &__identity-row span {
+      font: 400 1rem / 1.45 font-family(editorial);
+    }
+
+    &__lede {
+      max-width: 36rem;
+      margin: 0;
+      font-size: 1.18rem;
+    }
+
+    &__identity-name {
+      font: 700 clamp(2rem, 4vw, 3.2rem) / 0.92 font-family(bigger);
+      text-transform: uppercase;
+    }
+
+    &__identity-email {
+      opacity: 0.76;
+    }
+
+    &__identity-meta {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(243, 236, 229, 0.18);
+    }
+
+    &__identity-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+
+      span {
+        opacity: 0.56;
+      }
+
+      strong {
+        text-align: right;
+      }
+    }
+
+    &__grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+
+      @include mq(tablet) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    &__card {
+      padding: 1.2rem;
+
+      &--focus,
+      &--recommendation {
+        grid-column: span 2;
+
+        @include mq(tablet) {
+          grid-column: auto;
+        }
+      }
+    }
+
+    &__status-list {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    &__status-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(22, 0, 0, 0.1);
+
+      span {
+        font: 700 0.74rem / 1 font-family(fraktion);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      strong {
+        margin: 0;
+        text-align: right;
+      }
+    }
+
+    &__actions {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    &__button {
+      appearance: none;
+      border: 1px solid color(secondary);
+      background: color(secondary);
+      color: color(primary);
+      cursor: pointer;
+      padding: 0.9rem 1rem;
+      text-align: left;
+      font: 700 0.76rem / 1 font-family(fraktion);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition:
+        transform 0.2s ease,
+        background 0.2s ease,
+        color 0.2s ease;
+
+      &:hover,
+      &:focus-visible {
+        transform: translate3d(0, -2px, 0);
+        outline: none;
+      }
+
+      &--ghost {
+        background: transparent;
+        color: color(secondary);
+      }
+    }
+
+    &__snapshot-grid {
+      display: grid;
+      gap: 0.85rem;
+      margin-top: 1rem;
+    }
+
+    &__snapshot-box {
+      padding: 0.95rem;
+      border: 1px solid rgba(22, 0, 0, 0.1);
+      background: rgba(255, 255, 255, 0.36);
+    }
+
+    &__snapshot-label {
+      display: block;
+      margin-bottom: 0.55rem;
+    }
+
+    &__snapshot-value {
+      display: block;
+      font-size: 1.08rem;
+    }
+
+    &__focus,
+    &__recommendation {
+      margin: 1rem 0 0;
+      min-height: 6rem;
+      font-size: 1.12rem;
+    }
+  }
+</style>

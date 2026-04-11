@@ -69,6 +69,124 @@ function setStoredAuth(token, user) {
   }
 }
 
+function readStoredUsers() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.authUsers)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function saveStoredUsers(users) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.authUsers, JSON.stringify(users))
+  } catch {
+    // Ignore localStorage write failures.
+  }
+}
+
+function normalizeAuthUser(user) {
+  if (!user || typeof user !== 'object') return null
+
+  return {
+    id: String(user.id || `local-user-${String(user.email || '').toLowerCase()}`),
+    name: String(user.name || 'Aura Member'),
+    email: String(user.email || ''),
+    createdAt: Number(user.createdAt || Date.now()),
+  }
+}
+
+function createSessionToken(email) {
+  return `local-demo-token:${String(email || '').toLowerCase()}:${Date.now()}`
+}
+
+function formatMemberSince(timestamp) {
+  const value = Number(timestamp)
+  if (!value) return 'Today'
+
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(new Date(value))
+  } catch {
+    return 'Today'
+  }
+}
+
+function getTimeGreeting() {
+  const hour = new Date().getHours()
+
+  if (hour < 12) return 'morning'
+  if (hour < 18) return 'afternoon'
+  return 'evening'
+}
+
+function smoothScrollToElement(target) {
+  if (!(target instanceof HTMLElement)) return
+
+  const lenis = window.lenis
+  if (lenis && typeof lenis.scrollTo === 'function') {
+    lenis.scrollTo(target, {
+      offset: -24,
+    })
+    return
+  }
+
+  target.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  })
+}
+
+function navigateFromDashboard({ target = null, trigger = null, triggerDelay = 0 } = {}) {
+  const shouldExitDashboard = Boolean(state.dashboardOpen)
+
+  if (shouldExitDashboard) {
+    state.dashboardOpen = false
+    updateAccountDashboard()
+  }
+
+  const runNavigation = () => {
+    if (target instanceof HTMLElement) {
+      smoothScrollToElement(target)
+    }
+
+    if (trigger instanceof HTMLElement) {
+      window.setTimeout(() => {
+        trigger.click()
+      }, triggerDelay)
+    }
+  }
+
+  if (shouldExitDashboard) {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(runNavigation)
+    })
+    return
+  }
+
+  runNavigation()
+}
+
+function updateDashboardScene(isDashboardMode) {
+  document.documentElement.classList.toggle('am-dashboard-mode', isDashboardMode)
+
+  const sceneSelectors = ['.s-hero', '.s-about', '.s-work', '.s-cta', '.site-foot', 'a-separator']
+
+  sceneSelectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((node) => {
+      if (!(node instanceof HTMLElement)) return
+
+      node.hidden = isDashboardMode
+      node.setAttribute('aria-hidden', isDashboardMode ? 'true' : 'false')
+    })
+  })
+}
+
 function normalizeCloth(item) {
   return {
     _id: String(item?._id || item?.id || ''),
@@ -111,6 +229,8 @@ function updateFigureStatus(text) {
   if (stylingStatus) {
     stylingStatus.textContent = text
   }
+
+  updateAccountDashboard()
 }
 
 function updateWardrobeStatus(text) {
@@ -120,6 +240,8 @@ function updateWardrobeStatus(text) {
   if (status) {
     status.textContent = text
   }
+
+  updateAccountDashboard()
 }
 
 function updateSelectionStatus() {
@@ -127,6 +249,8 @@ function updateSelectionStatus() {
   if (status) {
     status.textContent = `${state.selectedClothIds.length} garments selected`
   }
+
+  updateAccountDashboard()
 }
 
 function updatePreviewStageStatus(title, detail) {
@@ -213,6 +337,8 @@ function updateAiWeatherContext() {
         ? 'Humidity: --'
         : `Humidity: ${state.weatherContext.humidity}%`
   }
+
+  updateAccountDashboard()
 }
 
 function updateAiStatus(text) {
@@ -231,16 +357,18 @@ function updateAuthStatus(text) {
 
 function updateAuthNavigation() {
   const authItem = document.querySelector('[data-auth-action="auth"]')
-  const signOutItem = document.querySelector('[data-auth-action="signout"]')
+  const headerSignOut = document.querySelector('[data-header-signout]')
   const isAuthenticated = Boolean(state.authToken)
 
   if (authItem instanceof HTMLElement) {
     authItem.hidden = isAuthenticated
   }
 
-  if (signOutItem instanceof HTMLElement) {
-    signOutItem.hidden = !isAuthenticated
+  if (headerSignOut instanceof HTMLElement) {
+    headerSignOut.hidden = !isAuthenticated
   }
+
+  document.documentElement.classList.toggle('am-authenticated', isAuthenticated)
 }
 
 function switchAuthTab(mode) {
@@ -533,72 +661,299 @@ async function requestRemoteRecommendation() {
 }
 
 async function requestLogin(credentials) {
-  const response = await fetch(API_ENDPOINTS.authLogin, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(credentials),
-  })
+  const email = String(credentials?.email || '').trim().toLowerCase()
+  const password = String(credentials?.password || '')
 
-  if (!response.ok) {
-    throw new Error(`Login failed (${response.status})`)
+  if (!email || !password) {
+    throw new Error('Email and password are required.')
   }
 
-  const payload = await response.json().catch(() => null)
-  const data = payload?.data || payload || {}
+  const users = readStoredUsers()
+  const match = users.find((user) => String(user.email || '').toLowerCase() === email)
 
+  if (!match) {
+    throw new Error('Account not found. Register first.')
+  }
+
+  if (String(match.password || '') !== password) {
+    throw new Error('Incorrect password.')
+  }
+
+  const user = normalizeAuthUser(match)
   return {
-    token: String(data.token || data.access_token || ''),
-    user: data.user || {
-      name: data.name || credentials.email,
-      email: data.email || credentials.email,
-    },
+    token: createSessionToken(email),
+    user,
   }
 }
 
 async function requestRegister(payloadInput) {
-  const response = await fetch(API_ENDPOINTS.authRegister, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payloadInput),
-  })
+  const name = String(payloadInput?.name || '').trim()
+  const email = String(payloadInput?.email || '').trim().toLowerCase()
+  const password = String(payloadInput?.password || '')
 
-  if (!response.ok) {
-    throw new Error(`Register failed (${response.status})`)
+  if (!name || !email || !password) {
+    throw new Error('Name, email, and password are required.')
   }
 
-  const payload = await response.json().catch(() => null)
-  const data = payload?.data || payload || {}
+  if (password.length < 6) {
+    throw new Error('Password must be at least 6 characters.')
+  }
+
+  const users = readStoredUsers()
+  const exists = users.some((user) => String(user.email || '').toLowerCase() === email)
+
+  if (exists) {
+    throw new Error('This email is already registered.')
+  }
+
+  const createdAt = Date.now()
+  const record = {
+    id: `local-user-${email}`,
+    name,
+    email,
+    password,
+    createdAt,
+  }
+
+  users.push(record)
+  saveStoredUsers(users)
 
   return {
-    token: String(data.token || data.access_token || ''),
-    user: data.user || {
-      name: data.name || payloadInput.name,
-      email: data.email || payloadInput.email,
-    },
+    token: createSessionToken(email),
+    user: normalizeAuthUser(record),
   }
 }
 
 function applyAuthenticatedSession({ token, user }) {
   state.authToken = token
-  state.authUser = user
-  setStoredAuth(token, user)
+  state.authUser = normalizeAuthUser(user)
+  state.dashboardOpen = false
+  setStoredAuth(token, state.authUser)
   updateAuthNavigation()
+  updateAccountDashboard()
 }
 
 async function signOutAndResetWardrobe() {
   state.authToken = ''
   state.authUser = null
+  state.dashboardOpen = false
   setStoredAuth('', null)
   updateAuthNavigation()
+  updateAccountDashboard()
   updateWardrobeStatus('Signed out. Demo garments restored for local preview.')
+
   await loadWardrobeCatalog({ force: true })
 }
 
+function updateAccountDashboard() {
+  const section = document.getElementById('account')
+  const heroTitle = document.querySelector('.s__title')
+  const heroGreeting = document.querySelector('[data-auth-greeting]')
+  const heroGreetingLine1 = document.getElementById('am-auth-greeting-line-1')
+  const heroGreetingLine2 = document.getElementById('am-auth-greeting-line-2')
+  const heroDashboardButton = document.querySelector('[data-dashboard-trigger]')
+  const isAuthenticated = Boolean(state.authToken && state.authUser)
+  const user = normalizeAuthUser(state.authUser)
+  const firstName = user?.name?.split(/\s+/).filter(Boolean)[0] || 'Member'
+  const historyCount = state.historyEntries.length
+  const selectedCount = state.selectedClothIds.length
+  const recommendation = state.lastRecommendation
+  const greetingLine1Text =
+    isAuthenticated && user
+      ? `${user.name}, good ${getTimeGreeting()}.`
+      : 'Aura Member, good evening.'
+  const greetingLine2Text = 'Ready to style your outfit for today?'
+  const isDashboardMode = isAuthenticated && state.dashboardOpen
+
+  updateDashboardScene(isDashboardMode)
+
+  if (section instanceof HTMLElement) {
+    section.hidden = !isDashboardMode
+    section.setAttribute('aria-hidden', isDashboardMode ? 'false' : 'true')
+  }
+
+  if (heroTitle instanceof HTMLElement) {
+    heroTitle.hidden = isAuthenticated
+    heroTitle.setAttribute('aria-hidden', isAuthenticated ? 'true' : 'false')
+  }
+
+  if (heroGreeting instanceof HTMLElement) {
+    heroGreeting.hidden = !isAuthenticated
+    heroGreeting.setAttribute('aria-hidden', isAuthenticated ? 'false' : 'true')
+    heroGreeting.dataset.line1 = greetingLine1Text
+    heroGreeting.dataset.line2 = greetingLine2Text
+  }
+
+  if (heroDashboardButton instanceof HTMLElement) {
+    heroDashboardButton.hidden = !isAuthenticated
+    heroDashboardButton.setAttribute('aria-hidden', isAuthenticated ? 'false' : 'true')
+  }
+
+  if (heroGreetingLine1) {
+    heroGreetingLine1.textContent = isAuthenticated ? '' : greetingLine1Text
+  }
+
+  if (heroGreetingLine2) {
+    heroGreetingLine2.textContent = isAuthenticated ? '' : greetingLine2Text
+  }
+
+  document.dispatchEvent(
+    new CustomEvent('am:greeting-update', {
+      detail: {
+        active: isAuthenticated,
+        line1: greetingLine1Text,
+        line2: greetingLine2Text,
+      },
+    })
+  )
+
+  const setText = (id, value) => {
+    const node = document.getElementById(id)
+    if (node) {
+      node.textContent = value
+    }
+  }
+
+  if (!isAuthenticated || !user) {
+    setText('am-account-greeting', 'Your private styling workspace appears here after login.')
+    setText('am-account-name', 'Aura Member')
+    setText('am-account-email', 'you@example.com')
+    setText('am-account-member-since', 'Today')
+    setText('am-account-mode', 'Local Demo')
+    setText(
+      'am-account-avatar-status',
+      state.avatarDataUrl ? 'Avatar ready for preview' : 'Waiting for portrait'
+    )
+    setText('am-account-wardrobe-status', state.wardrobeStatus || 'Demo wardrobe standby')
+    setText(
+      'am-account-preview-status',
+      state.avatarDataUrl ? 'Avatar ready for try-on' : 'No try-on preview yet'
+    )
+    setText('am-account-history-count', `${historyCount} saved runs`)
+    setText(
+      'am-account-weather',
+      `${state.weatherContext.city || 'Fallback Studio'} / ${state.weatherContext.weatherLabel || 'controlled'} / ${
+        state.weatherContext.temperatureC == null ? '--' : `${state.weatherContext.temperatureC} C`
+      }`
+    )
+    setText('am-account-selection-count', `${selectedCount} garments selected`)
+    setText(
+      'am-account-next-step',
+      'Register or sign in to unlock your personal dashboard and local demo session.'
+    )
+    setText(
+      'am-account-recommendation',
+      'Your first styling recommendation will be summarized here after the AI Stylist runs.'
+    )
+    return
+  }
+
+  setText('am-account-greeting', `Welcome back, ${firstName}. Your styling workspace is live.`)
+  setText('am-account-name', user.name)
+  setText('am-account-email', user.email)
+  setText('am-account-member-since', formatMemberSince(user.createdAt))
+  setText(
+    'am-account-mode',
+    state.wardrobeMode === 'remote' ? 'Remote Ready' : 'Local Demo'
+  )
+  setText(
+    'am-account-avatar-status',
+    state.avatarDataUrl ? 'Avatar generated and synced' : 'Portrait upload pending'
+  )
+  setText(
+    'am-account-wardrobe-status',
+    state.wardrobeStatus ||
+      (state.wardrobeMode === 'remote'
+        ? 'Live wardrobe ready'
+        : 'Demo wardrobe ready')
+  )
+  setText(
+    'am-account-preview-status',
+    state.avatarDataUrl ? 'Preview pipeline armed' : 'No try-on preview yet'
+  )
+  setText('am-account-history-count', `${historyCount} saved runs`)
+  setText(
+    'am-account-weather',
+    `${state.weatherContext.city || 'Fallback Studio'} / ${state.weatherContext.weatherLabel || 'controlled'} / ${
+      state.weatherContext.temperatureC == null ? '--' : `${state.weatherContext.temperatureC} C`
+    }`
+  )
+  setText('am-account-selection-count', `${selectedCount} garments selected`)
+  setText(
+    'am-account-next-step',
+    state.avatarDataUrl
+      ? 'Open Wardrobe or AI Stylist to continue building the next look.'
+      : 'Upload a portrait photo first so avatar, wardrobe, and preview modules can sync.'
+  )
+  setText(
+    'am-account-recommendation',
+    recommendation?.summary ||
+      'No recommendation yet. Open AI Stylist to generate your first personalized look.'
+  )
+}
+
+function bindAccountDashboard() {
+  const signOutButtons = document.querySelectorAll('[data-signout-trigger], [data-header-signout]')
+  const openAvatar = document.getElementById('am-account-open-avatar')
+  const openWardrobe = document.getElementById('am-account-open-wardrobe')
+  const openAi = document.getElementById('am-account-open-ai')
+  const openHistory = document.getElementById('am-account-open-history')
+  const openDashboard = document.querySelector('[data-dashboard-trigger]')
+  const closeDashboard = document.querySelector('[data-dashboard-close]')
+
+  signOutButtons.forEach((button) => {
+    button.addEventListener('click', async () => {
+      await signOutAndResetWardrobe()
+      updateAuthStatus('Signed out. Demo wardrobe reloaded.')
+    })
+  })
+
+  openDashboard?.addEventListener('click', () => {
+    if (!state.authToken) return
+
+    state.dashboardOpen = true
+    updateAccountDashboard()
+    smoothScrollToElement(document.getElementById('account'))
+  })
+
+  closeDashboard?.addEventListener('click', () => {
+    state.dashboardOpen = false
+    updateAccountDashboard()
+    smoothScrollToElement(document.querySelector('.s__auth-slot'))
+  })
+
+  openAvatar?.addEventListener('click', () => {
+    navigateFromDashboard({
+      target: document.getElementById('about'),
+    })
+  })
+
+  openWardrobe?.addEventListener('click', () => {
+    navigateFromDashboard({
+      target: document.getElementById('about'),
+      trigger: document.getElementById('am-styling-trigger'),
+      triggerDelay: 160,
+    })
+  })
+
+  openAi?.addEventListener('click', () => {
+    navigateFromDashboard({
+      target: document.getElementById('about'),
+      trigger: document.getElementById('am-ai-trigger'),
+      triggerDelay: 160,
+    })
+  })
+
+  openHistory?.addEventListener('click', () => {
+    navigateFromDashboard({
+      target: document.getElementById('contact'),
+    })
+  })
+}
+
 function renderRecommendationResult(recommendation) {
+  state.lastRecommendation = recommendation
+
   const results = document.getElementById('am-ai-results')
   if (!results) return
 
@@ -619,6 +974,8 @@ function renderRecommendationResult(recommendation) {
       <ul class="am-recommendation__list">${bulletMarkup}</ul>
     </div>
   `
+
+  updateAccountDashboard()
 }
 
 function renderPreviewRecommendationCard(recommendation) {
@@ -1133,12 +1490,14 @@ function persistCurrentRecommendation() {
   )
   saveHistoryEntries(state.historyEntries)
   renderHistoryList()
+  updateAccountDashboard()
 }
 
 function clearRecommendationHistory() {
   state.historyEntries = []
   saveHistoryEntries([])
   renderHistoryList()
+  updateAccountDashboard()
 }
 
 function bindRecommendationHistory() {
@@ -1147,6 +1506,7 @@ function bindRecommendationHistory() {
 
   state.historyEntries = readHistoryEntries()
   renderHistoryList()
+  updateAccountDashboard()
 
   list?.addEventListener('mouseover', (event) => {
     if (!(event.target instanceof Element)) return
@@ -1193,9 +1553,6 @@ function bindAuthOverlay() {
   const loginForm = document.getElementById('am-login-form')
   const registerForm = document.getElementById('am-register-form')
   const authButton = document.querySelector('[data-auth-action="auth"] .am-auth-nav-button')
-  const signOutButton = document.querySelector(
-    '[data-auth-action="signout"] .am-auth-nav-button'
-  )
 
   if (!(overlay instanceof HTMLElement)) {
     return
@@ -1223,11 +1580,6 @@ function bindAuthOverlay() {
 
   authButton?.addEventListener('click', () => {
     openOverlay()
-  })
-
-  signOutButton?.addEventListener('click', async () => {
-    await signOutAndResetWardrobe()
-    updateAuthStatus('Signed out. Demo wardrobe reloaded.')
   })
 
   loginTab?.addEventListener('click', () => {
@@ -1269,6 +1621,7 @@ function bindAuthOverlay() {
       updateAuthStatus(
         `Logged in as ${session.user?.name || session.user?.email || payload.email}.`
       )
+      loginForm.reset()
       closeOverlay(authButton)
       await loadWardrobeCatalog({ force: true })
     } catch (error) {
@@ -1298,6 +1651,7 @@ function bindAuthOverlay() {
         updateAuthStatus(
           `Account created for ${session.user?.name || session.user?.email || payload.email}.`
         )
+        registerForm.reset()
         closeOverlay(authButton)
         await loadWardrobeCatalog({ force: true })
       } else {
@@ -2383,12 +2737,13 @@ export function initAuraMirror() {
   document.documentElement.dataset.auramirrorBootstrapped = '1'
 
   state.authToken = getApiToken()
-  state.authUser = getStoredAuthUser()
+  state.authUser = normalizeAuthUser(getStoredAuthUser())
 
   primeRuntimeState()
   applyBaseMetadata()
   markReady()
   updateAuthNavigation()
+  bindAccountDashboard()
   bindAvatarStudio()
   const stylingControls = bindModuleEntryPlaceholder()
   bindAiStylistOverlay(stylingControls)
@@ -2398,4 +2753,5 @@ export function initAuraMirror() {
   updateAiWeatherContext()
   updateAiResultsSummary('Stylist context will appear here after the first panel open.')
   updateSelectionStatus()
+  updateAccountDashboard()
 }
