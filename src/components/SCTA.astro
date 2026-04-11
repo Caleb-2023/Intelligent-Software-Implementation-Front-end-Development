@@ -72,6 +72,7 @@
       gapY: number
       lines: any[]
       points: any[][]
+      rowOffsets: number[]
       el: HTMLElement
       svg: SVGElement
       path: SVGPathElement
@@ -117,6 +118,7 @@
         gapY: 0,
         lines: [],
         points: [],
+        rowOffsets: [],
         el: gridEl,
         svg: gridSvg,
         path: gridPath,
@@ -297,12 +299,16 @@
         grid.points.push(row)
       }
 
+      grid.rowOffsets = new Array(grid.hLines + 1).fill(0)
+
       this.drawLines()
     }
 
     movePoints() {
       const { grid, wave } = this
       const waveHypot = Math.hypot(window.safeHeight, window.safeWidth)
+      const rowTotals = new Array(grid.hLines + 1).fill(0)
+      const rowCounts = new Array(grid.hLines + 1).fill(0)
 
       grid.points.forEach((col) => {
         col.forEach((point, y) => {
@@ -343,7 +349,15 @@
 
           point.ox *= grid.gapX * 75 * (point.dist / this.ctaMaxSize)
           point.oy *= grid.gapY * 75 * (point.dist / this.ctaMaxSize)
+
+          rowTotals[y] += point.my + point.oy * this.wave.op
+          rowCounts[y] += 1
         })
+      })
+
+      grid.rowOffsets = rowTotals.map((total, index) => {
+        if (!rowCounts[index]) return 0
+        return total / rowCounts[index]
       })
     }
 
@@ -354,7 +368,7 @@
     movedPoint(point) {
       return {
         x: point.x + point.mx + point.ox * this.wave.op,
-        y: point.y + point.my + point.oy * this.wave.op,
+        y: point.y + (this.grid.rowOffsets[point.row] ?? 0),
       }
     }
 
