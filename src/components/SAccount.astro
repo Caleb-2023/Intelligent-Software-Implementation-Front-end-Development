@@ -152,22 +152,48 @@
 
 <style lang="scss">
   .s-account {
-    position: relative;
-    z-index: 3;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
 
-    padding: 8rem 0 10rem;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 0;
+    overflow: hidden;
 
     background:
       radial-gradient(circle at 15% 20%, rgba(244, 12, 63, 0.1), transparent 28%),
       radial-gradient(circle at 85% 18%, rgba(22, 0, 0, 0.1), transparent 25%),
-      linear-gradient(180deg, rgba(22, 0, 0, 0.035), transparent 28%);
+      linear-gradient(180deg, rgba(22, 0, 0, 0.035), transparent 28%),
+      color(primary);
 
-    @include mq(phone) {
-      padding: 5rem 0 6rem;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(1.5rem);
+    transition:
+      opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      visibility 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &[hidden] {
+      display: none;
+    }
+
+    &.is-open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0);
     }
 
     &__shell {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
       max-width: 1280px;
+      width: 100%;
       margin: 0 auto;
       padding: 0 1.5rem;
 
@@ -178,7 +204,11 @@
 
     &__frame {
       position: relative;
-      padding: 1rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 0.75rem;
 
       border: 1px solid color(secondary);
 
@@ -195,7 +225,7 @@
       }
 
       &:before {
-        inset: 1rem;
+        inset: 0.75rem;
         border: 1px solid rgba(22, 0, 0, 0.1);
       }
 
@@ -214,7 +244,8 @@
       z-index: 2;
       display: flex;
       justify-content: flex-end;
-      margin-bottom: 1rem;
+      flex-shrink: 0;
+      margin-bottom: 0.5rem;
     }
 
     &__close {
@@ -223,8 +254,8 @@
       background: transparent;
       color: color(secondary);
       cursor: pointer;
-      padding: 0.75rem 1rem;
-      font: 700 0.74rem / 1 font-family(fraktion);
+      padding: 0.5rem 0.85rem;
+      font: 700 0.7rem / 1 font-family(fraktion);
       letter-spacing: 0.1em;
       text-transform: uppercase;
       transition:
@@ -245,9 +276,10 @@
       position: relative;
       z-index: 1;
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
-      gap: 1rem;
-      margin-bottom: 1rem;
+      grid-template-columns: minmax(0, 1.15fr) minmax(14rem, 0.85fr);
+      gap: 0.75rem;
+      flex-shrink: 0;
+      margin-bottom: 0.75rem;
 
       @include mq(tablet) {
         grid-template-columns: 1fr;
@@ -264,14 +296,14 @@
     }
 
     &__copy {
-      padding: 1.4rem;
+      padding: 1rem;
     }
 
     &__identity {
       display: flex;
       flex-direction: column;
-      gap: 0.6rem;
-      padding: 1.4rem;
+      gap: 0.4rem;
+      padding: 1rem;
       background:
         radial-gradient(circle at top right, rgba(244, 12, 63, 0.18), transparent 42%),
         rgba(22, 0, 0, 0.92);
@@ -284,14 +316,14 @@
     &__identity-label,
     &__snapshot-label {
       margin: 0;
-      font: 700 0.74rem / 1 font-family(fraktion);
+      font: 700 0.68rem / 1 font-family(fraktion);
       letter-spacing: 0.1em;
       text-transform: uppercase;
     }
 
     &__title {
-      margin: 0.4rem 0 0.9rem;
-      font: 700 clamp(3.5rem, 9vw, 7.25rem) / 0.82 font-family(bigger);
+      margin: 0.2rem 0 0.4rem;
+      font: 700 clamp(2rem, 5vw, 3.5rem) / 0.85 font-family(bigger);
       text-transform: uppercase;
     }
 
@@ -303,17 +335,17 @@
     &__status-row strong,
     &__identity-row strong,
     &__identity-row span {
-      font: 400 1rem / 1.45 font-family(editorial);
+      font: 400 0.88rem / 1.35 font-family(editorial);
     }
 
     &__lede {
       max-width: 36rem;
       margin: 0;
-      font-size: 1.18rem;
+      font-size: 0.95rem;
     }
 
     &__identity-name {
-      font: 700 clamp(2rem, 4vw, 3.2rem) / 0.92 font-family(bigger);
+      font: 700 clamp(1.4rem, 3vw, 2.2rem) / 0.92 font-family(bigger);
       text-transform: uppercase;
     }
 
@@ -323,9 +355,9 @@
 
     &__identity-meta {
       display: grid;
-      gap: 0.75rem;
+      gap: 0.4rem;
       margin-top: auto;
-      padding-top: 1rem;
+      padding-top: 0.6rem;
       border-top: 1px solid rgba(243, 236, 229, 0.18);
     }
 
@@ -347,17 +379,23 @@
     &__grid {
       position: relative;
       z-index: 1;
+      flex: 1;
+      min-height: 0;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 1rem;
+      grid-template-rows: 1fr 1fr;
+      gap: 0.75rem;
 
       @include mq(tablet) {
         grid-template-columns: 1fr;
+        grid-template-rows: auto;
       }
     }
 
     &__card {
-      padding: 1.2rem;
+      padding: 0.85rem;
+      min-height: 0;
+      overflow: hidden;
 
       &--focus,
       &--recommendation {
@@ -371,8 +409,8 @@
 
     &__status-list {
       display: grid;
-      gap: 0.75rem;
-      margin-top: 1rem;
+      gap: 0.45rem;
+      margin-top: 0.6rem;
     }
 
     &__status-row {
@@ -380,11 +418,11 @@
       align-items: baseline;
       justify-content: space-between;
       gap: 1rem;
-      padding-bottom: 0.75rem;
+      padding-bottom: 0.45rem;
       border-bottom: 1px solid rgba(22, 0, 0, 0.1);
 
       span {
-        font: 700 0.74rem / 1 font-family(fraktion);
+        font: 700 0.68rem / 1 font-family(fraktion);
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
@@ -397,8 +435,8 @@
 
     &__actions {
       display: grid;
-      gap: 0.75rem;
-      margin-top: 1rem;
+      gap: 0.45rem;
+      margin-top: 0.6rem;
     }
 
     &__button {
@@ -407,9 +445,9 @@
       background: color(secondary);
       color: color(primary);
       cursor: pointer;
-      padding: 0.9rem 1rem;
+      padding: 0.6rem 0.85rem;
       text-align: left;
-      font: 700 0.76rem / 1 font-family(fraktion);
+      font: 700 0.7rem / 1 font-family(fraktion);
       letter-spacing: 0.1em;
       text-transform: uppercase;
       transition:
@@ -431,31 +469,30 @@
 
     &__snapshot-grid {
       display: grid;
-      gap: 0.85rem;
-      margin-top: 1rem;
+      gap: 0.5rem;
+      margin-top: 0.6rem;
     }
 
     &__snapshot-box {
-      padding: 0.95rem;
+      padding: 0.65rem;
       border: 1px solid rgba(22, 0, 0, 0.1);
       background: rgba(255, 255, 255, 0.36);
     }
 
     &__snapshot-label {
       display: block;
-      margin-bottom: 0.55rem;
+      margin-bottom: 0.35rem;
     }
 
     &__snapshot-value {
       display: block;
-      font-size: 1.08rem;
+      font-size: 0.92rem;
     }
 
     &__focus,
     &__recommendation {
-      margin: 1rem 0 0;
-      min-height: 6rem;
-      font-size: 1.12rem;
+      margin: 0.6rem 0 0;
+      font-size: 0.95rem;
     }
   }
 </style>

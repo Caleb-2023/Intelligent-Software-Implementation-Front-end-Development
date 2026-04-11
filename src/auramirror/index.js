@@ -175,16 +175,10 @@ function navigateFromDashboard({ target = null, trigger = null, triggerDelay = 0
 function updateDashboardScene(isDashboardMode) {
   document.documentElement.classList.toggle('am-dashboard-mode', isDashboardMode)
 
-  const sceneSelectors = ['.s-hero', '.s-about', '.s-work', '.s-cta', '.site-foot', 'a-separator']
-
-  sceneSelectors.forEach((selector) => {
-    document.querySelectorAll(selector).forEach((node) => {
-      if (!(node instanceof HTMLElement)) return
-
-      node.hidden = isDashboardMode
-      node.setAttribute('aria-hidden', isDashboardMode ? 'true' : 'false')
-    })
-  })
+  const lenis = window.lenis
+  if (lenis) {
+    isDashboardMode ? lenis.stop() : lenis.start()
+  }
 }
 
 function normalizeCloth(item) {
@@ -768,8 +762,16 @@ function updateAccountDashboard() {
   updateDashboardScene(isDashboardMode)
 
   if (section instanceof HTMLElement) {
-    section.hidden = !isDashboardMode
-    section.setAttribute('aria-hidden', isDashboardMode ? 'false' : 'true')
+    if (isDashboardMode) {
+      section.hidden = false
+      section.setAttribute('aria-hidden', 'false')
+      requestAnimationFrame(() => {
+        section.classList.add('is-open')
+      })
+    } else {
+      section.classList.remove('is-open')
+      section.setAttribute('aria-hidden', 'true')
+    }
   }
 
   if (heroTitle instanceof HTMLElement) {
@@ -913,13 +915,11 @@ function bindAccountDashboard() {
 
     state.dashboardOpen = true
     updateAccountDashboard()
-    smoothScrollToElement(document.getElementById('account'))
   })
 
   closeDashboard?.addEventListener('click', () => {
     state.dashboardOpen = false
     updateAccountDashboard()
-    smoothScrollToElement(document.querySelector('.s__auth-slot'))
   })
 
   openAvatar?.addEventListener('click', () => {
