@@ -745,7 +745,6 @@ function updateAccountDashboard() {
   const heroGreeting = document.querySelector('[data-auth-greeting]')
   const heroGreetingLine1 = document.getElementById('am-auth-greeting-line-1')
   const heroGreetingLine2 = document.getElementById('am-auth-greeting-line-2')
-  const heroDashboardButton = document.querySelector('[data-dashboard-trigger]')
   const isAuthenticated = Boolean(state.authToken && state.authUser)
   const user = normalizeAuthUser(state.authUser)
   const firstName = user?.name?.split(/\s+/).filter(Boolean)[0] || 'Member'
@@ -784,11 +783,6 @@ function updateAccountDashboard() {
     heroGreeting.setAttribute('aria-hidden', isAuthenticated ? 'false' : 'true')
     heroGreeting.dataset.line1 = greetingLine1Text
     heroGreeting.dataset.line2 = greetingLine2Text
-  }
-
-  if (heroDashboardButton instanceof HTMLElement) {
-    heroDashboardButton.hidden = !isAuthenticated
-    heroDashboardButton.setAttribute('aria-hidden', isAuthenticated ? 'false' : 'true')
   }
 
   if (heroGreetingLine1) {

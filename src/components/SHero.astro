@@ -56,7 +56,7 @@ const authPreviewLines = [
 
   <div id="am-auth-overlay" class="s__auth-cta js-auth-cta" aria-hidden="true">
     <div class="s__auth-cta__backdrop" data-auth-close></div>
-    <div class="s__auth-cta__scroll">
+    <div class="s__auth-cta__scroll" data-lenis-prevent>
       <div
         class="am-auth-overlay__dialog"
         role="dialog"
@@ -291,6 +291,7 @@ const authPreviewLines = [
     authGreeting: HTMLElement
     authGreetingLine1: HTMLElement
     authGreetingLine2: HTMLElement
+    authDashboardButton: HTMLElement
     greetingReady: boolean
     greetingPayload: {
       active: boolean
@@ -300,6 +301,7 @@ const authPreviewLines = [
     greetingSignature: string
     greetingTimers: number[]
     greetingRunId: number
+    dashboardRevealFrame: number
 
     constructor() {
       this.el = document.querySelector('.s-hero')
@@ -316,6 +318,7 @@ const authPreviewLines = [
       this.greetingSignature = ''
       this.greetingTimers = []
       this.greetingRunId = 0
+      this.dashboardRevealFrame = 0
 
       if (document.readyState === 'complete') {
         Ticker.nextTick(this.init, this)
@@ -471,6 +474,7 @@ const authPreviewLines = [
       this.authGreeting = this.el.querySelector('[data-auth-greeting]')
       this.authGreetingLine1 = document.getElementById('am-auth-greeting-line-1')
       this.authGreetingLine2 = document.getElementById('am-auth-greeting-line-2')
+      this.authDashboardButton = document.querySelector('[data-dashboard-trigger]')
 
       this.syncGreetingFromDom()
     }
@@ -493,26 +497,42 @@ const authPreviewLines = [
       }
 
       if (this.greetingPayload.active) {
+        this.hideDashboardButton()
         this.clearGreetingLines()
+      } else {
+        this.hideDashboardButton()
       }
     }
 
     onGreetingUpdate(event: Event) {
       const detail = (event as CustomEvent)?.detail || {}
 
-      this.greetingPayload = {
+      const nextPayload = {
         active: Boolean(detail.active),
         line1: String(detail.line1 || ''),
         line2: String(detail.line2 || ''),
       }
+      const nextSignature = JSON.stringify(nextPayload)
+
+      this.greetingPayload = nextPayload
 
       if (!this.greetingPayload.active) {
         this.stopGreetingStream()
         this.greetingSignature = ''
+        this.hideDashboardButton()
         this.clearGreetingLines()
         return
       }
 
+      if (nextSignature === this.greetingSignature) {
+        if (!this.hasGreetingContent()) {
+          this.renderGreetingSnapshot()
+        }
+        this.showDashboardButton()
+        return
+      }
+
+      this.hideDashboardButton()
       this.clearGreetingLines()
       this.playGreetingIfReady()
     }
@@ -520,6 +540,58 @@ const authPreviewLines = [
     clearGreetingLines() {
       this.authGreetingLine1 && (this.authGreetingLine1.textContent = '')
       this.authGreetingLine2 && (this.authGreetingLine2.textContent = '')
+    }
+
+    hasGreetingContent() {
+      const line1 = this.authGreetingLine1?.textContent?.trim() || ''
+      const line2 = this.authGreetingLine2?.textContent?.trim() || ''
+
+      return Boolean(line1 || line2)
+    }
+
+    renderGreetingSnapshot() {
+      if (!this.authGreetingLine1 || !this.authGreetingLine2) {
+        return
+      }
+
+      this.authGreetingLine1.textContent = this.greetingPayload.line1
+      this.authGreetingLine2.textContent = this.greetingPayload.line2
+    }
+
+    hideDashboardButton() {
+      if (!this.authDashboardButton) {
+        return
+      }
+
+      if (this.dashboardRevealFrame) {
+        window.cancelAnimationFrame(this.dashboardRevealFrame)
+        this.dashboardRevealFrame = 0
+      }
+
+      this.authDashboardButton.classList.remove('is-visible')
+      this.authDashboardButton.hidden = true
+      this.authDashboardButton.setAttribute('aria-hidden', 'true')
+    }
+
+    showDashboardButton() {
+      if (!this.authDashboardButton || !this.greetingPayload.active) {
+        return
+      }
+
+      if (this.dashboardRevealFrame) {
+        window.cancelAnimationFrame(this.dashboardRevealFrame)
+        this.dashboardRevealFrame = 0
+      }
+
+      this.authDashboardButton.hidden = false
+      this.authDashboardButton.setAttribute('aria-hidden', 'false')
+
+      this.dashboardRevealFrame = window.requestAnimationFrame(() => {
+        this.dashboardRevealFrame = window.requestAnimationFrame(() => {
+          this.authDashboardButton?.classList.add('is-visible')
+          this.dashboardRevealFrame = 0
+        })
+      })
     }
 
     stopGreetingStream() {
@@ -584,6 +656,10 @@ const authPreviewLines = [
       const signature = JSON.stringify(this.greetingPayload)
 
       if (signature === this.greetingSignature) {
+        if (!this.hasGreetingContent()) {
+          this.renderGreetingSnapshot()
+        }
+        this.showDashboardButton()
         return
       }
 
@@ -607,6 +683,7 @@ const authPreviewLines = [
                 24,
                 () => {
                   this.greetingSignature = signature
+                  this.showDashboardButton()
                 }
               )
             }, 220)
@@ -977,16 +1054,26 @@ const authPreviewLines = [
       cursor: pointer;
       padding: 0.9rem 1.3rem;
       min-width: 10rem;
+      opacity: 0;
+      transform: translate3d(0, 0.9rem, 0);
       font: 700 0.8rem / 1 font-family(fraktion);
       letter-spacing: 0.12em;
       text-transform: uppercase;
       transition:
-        transform 0.2s ease,
-        background 0.2s ease,
+        opacity 5s ease,
+        transform 4s ease,
+        background 1.2s ease,
         color 0.2s ease;
+      pointer-events: none;
 
       &[hidden] {
         display: none;
+      }
+
+      &.is-visible {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+        pointer-events: auto;
       }
 
       &:hover,
@@ -1385,11 +1472,21 @@ const authPreviewLines = [
       width: min(28rem, 100%);
       max-height: min(100%, 85vh);
       overflow-y: auto;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
       opacity: 0;
       transform: translateY(1rem);
       transition:
         opacity 0.28s ease,
         transform 0.28s ease;
+
+      &::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        display: none;
+      }
     }
 
     .s__auth-cta[data-open='true'] .s__auth-cta__scroll {
