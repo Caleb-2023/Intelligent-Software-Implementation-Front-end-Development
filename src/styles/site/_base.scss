@@ -23,6 +23,10 @@ html {
   background-color: color(secondary);
   scrollbar-width: none;
 
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
   color: color(secondary);
 
   &.is-scroll-blocked {
