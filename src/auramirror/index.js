@@ -15,6 +15,8 @@ import {
 
 gsap.registerPlugin(ScrollTrigger)
 
+const OVERLAY_TRANSITION_MS = 280
+
 function markReady() {
   document.documentElement.dataset.auramirror = 'ready'
   document.body?.setAttribute('data-auramirror', 'ready')
@@ -260,6 +262,88 @@ function updatePreviewStageStatus(title, detail) {
   }
 }
 
+function mountOverlayToBody(overlayId) {
+  const overlay = document.getElementById(overlayId)
+  const { body } = document
+
+  if (!(overlay instanceof HTMLElement) || !body || overlay.parentElement === body) {
+    return
+  }
+
+  body.append(overlay)
+}
+
+function primeOverlayLayers() {
+  mountOverlayToBody('am-styling-overlay')
+  mountOverlayToBody('am-ai-overlay')
+}
+
+function clearOverlayTransitionState(overlay) {
+  if (!(overlay instanceof HTMLElement)) return
+
+  if (overlay._amOpenFrameId) {
+    window.cancelAnimationFrame(overlay._amOpenFrameId)
+    overlay._amOpenFrameId = 0
+  }
+
+  if (overlay._amCloseTimeoutId) {
+    window.clearTimeout(overlay._amCloseTimeoutId)
+    overlay._amCloseTimeoutId = 0
+  }
+}
+
+function openOverlayElement(overlay) {
+  if (!(overlay instanceof HTMLElement)) return
+
+  clearOverlayTransitionState(overlay)
+  overlay.hidden = false
+  overlay.setAttribute('aria-hidden', 'false')
+  overlay.dataset.open = 'false'
+  overlay._amOpenFrameId = window.requestAnimationFrame(() => {
+    overlay.dataset.open = 'true'
+    overlay._amOpenFrameId = 0
+  })
+}
+
+function closeOverlayElement(overlay, { onHidden } = {}) {
+  if (!(overlay instanceof HTMLElement)) return
+
+  clearOverlayTransitionState(overlay)
+  overlay.setAttribute('aria-hidden', 'true')
+  overlay.dataset.open = 'false'
+  overlay._amCloseTimeoutId = window.setTimeout(() => {
+    overlay.hidden = true
+    overlay._amCloseTimeoutId = 0
+    if (typeof onHidden === 'function') {
+      onHidden()
+    }
+  }, OVERLAY_TRANSITION_MS)
+}
+
+function bindOverlayWheelLock(overlay, dialog) {
+  if (!(overlay instanceof HTMLElement) || !(dialog instanceof HTMLElement)) {
+    return
+  }
+
+  overlay.addEventListener(
+    'wheel',
+    (event) => {
+      if (overlay.hidden) return
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      if (!(event.target instanceof Node) || !dialog.contains(event.target)) {
+        return
+      }
+
+      dialog.scrollTop += event.deltaY
+      dialog.scrollLeft += event.deltaX
+    },
+    { passive: false }
+  )
+}
+
 function syncOverlayLock() {
   const stylingOverlay = document.getElementById('am-styling-overlay')
   const aiOverlay = document.getElementById('am-ai-overlay')
@@ -285,27 +369,47 @@ function updateAvatarPreviewState({ hasAvatar }) {
   const placeholder = document.getElementById('am-avatar-placeholder')
   const canvas = document.getElementById('am-avatar-canvas')
 
-  if (!placeholder || !canvas) return
+  if (!canvas) return
 
-  placeholder.hidden = hasAvatar
+  if (placeholder) {
+    placeholder.hidden = hasAvatar
+  }
+
   canvas.hidden = !hasAvatar
 }
 
+function paintTryOnCanvasSurface(canvas) {
+  if (!(canvas instanceof HTMLCanvasElement)) return
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+  gradient.addColorStop(0, '#120001')
+  gradient.addColorStop(0.42, '#2a080d')
+  gradient.addColorStop(1, '#f40c3f')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  ctx.save()
+  ctx.strokeStyle = 'rgba(243, 236, 229, 0.7)'
+  ctx.lineWidth = 1.5
+  ctx.strokeRect(22, 22, canvas.width - 44, canvas.height - 44)
+  ctx.restore()
+}
+
 function updateTryOnPreviewState({ hasPreview, imageUrl = '' }) {
-  const placeholder = document.getElementById('am-tryon-placeholder')
   const canvas = document.getElementById('am-tryon-canvas')
-  const image = document.getElementById('am-tryon-image')
+  if (!(canvas instanceof HTMLCanvasElement)) return
 
-  if (!placeholder || !canvas || !image) return
+  canvas.hidden = false
+  canvas.dataset.previewReady = hasPreview ? 'true' : 'false'
+  canvas.dataset.previewSource = imageUrl
 
-  placeholder.hidden = hasPreview
-  canvas.hidden = !hasPreview || Boolean(imageUrl)
-  image.hidden = !imageUrl
-
-  if (imageUrl) {
-    image.setAttribute('src', imageUrl)
-  } else {
-    image.removeAttribute('src')
+  if (!hasPreview) {
+    paintTryOnCanvasSurface(canvas)
   }
 }
 
@@ -414,45 +518,52 @@ function updateAiResultsSummary(message = '') {
 }
 
 function getPreviewImageSource() {
-  const image = document.getElementById('am-tryon-image')
   const canvas = document.getElementById('am-tryon-canvas')
-
-  if (image && !image.hidden) {
-    const src = image.getAttribute('src')
-    if (src) {
-      return src
+  if (canvas instanceof HTMLCanvasElement && canvas.dataset.previewReady === 'true') {
+    if (canvas.dataset.previewSource) {
+      return canvas.dataset.previewSource
     }
-  }
 
-  if (canvas && !canvas.hidden) {
     return canvas.toDataURL('image/png')
   }
 
   return state.avatarDataUrl || ''
 }
 
+async function renderRemoteTryOnToCanvas(source) {
+  const canvas = document.getElementById('am-tryon-canvas')
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    throw new Error('Preview canvas unavailable')
+  }
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    throw new Error('Preview canvas unavailable')
+  }
+
+  const image = await loadImage(source)
+  paintTryOnCanvasSurface(canvas)
+
+  ctx.save()
+  ctx.globalAlpha = 0.96
+  drawCoverImage(ctx, image, canvas.width, canvas.height)
+  ctx.restore()
+
+  ctx.save()
+  ctx.fillStyle = 'rgba(22, 0, 0, 0.2)'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.restore()
+}
+
 async function renderAiVisualFromCurrentPreview(recommendation) {
   const canvas = document.getElementById('am-ai-canvas')
-  const placeholder = document.getElementById('am-ai-visual-placeholder')
   if (!canvas) return
-
-  const source = getPreviewImageSource()
-  if (!source) {
-    canvas.hidden = true
-    if (placeholder) {
-      placeholder.hidden = false
-      placeholder.textContent =
-        'Generate an avatar or try-on preview first to unlock recommendation visuals.'
-    }
-    return
-  }
 
   const ctx = canvas.getContext('2d')
   if (!ctx) {
     throw new Error('AI canvas unavailable')
   }
 
-  const image = await loadImage(source)
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 
   const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
@@ -461,6 +572,17 @@ async function renderAiVisualFromCurrentPreview(recommendation) {
   gradient.addColorStop(1, '#f40c3f')
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  ctx.strokeStyle = 'rgba(243, 236, 229, 0.78)'
+  ctx.lineWidth = 1.5
+  ctx.strokeRect(22, 22, canvas.width - 44, canvas.height - 44)
+
+  const source = getPreviewImageSource()
+  if (!source) {
+    return
+  }
+
+  const image = await loadImage(source)
 
   ctx.save()
   ctx.globalAlpha = 0.84
@@ -498,11 +620,6 @@ async function renderAiVisualFromCurrentPreview(recommendation) {
   lines.forEach((line, index) => {
     ctx.fillText(line, 30, 110 + index * 22)
   })
-
-  if (placeholder) {
-    placeholder.hidden = true
-  }
-  canvas.hidden = false
 }
 
 function formatClothList(cloths) {
@@ -2305,6 +2422,7 @@ async function handleTryOnRequest(closeOverlay) {
       }
 
       if (imageUrl) {
+        await renderRemoteTryOnToCanvas(imageUrl)
         updateTryOnPreviewState({ hasPreview: true, imageUrl })
         updatePreviewStageStatus(
           'Remote preview ready',
@@ -2494,6 +2612,7 @@ function bindAvatarStudio() {
 function bindModuleEntryPlaceholder() {
   const trigger = document.getElementById('am-styling-trigger')
   const overlay = document.getElementById('am-styling-overlay')
+  const dialog = overlay?.querySelector('.am-styling-overlay__dialog')
   const closeButton = document.getElementById('am-styling-close')
   const refreshButton = document.getElementById('am-refresh-wardrobe')
   const applyButton = document.getElementById('am-generate-tryon')
@@ -2501,6 +2620,8 @@ function bindModuleEntryPlaceholder() {
   const grid = document.getElementById('am-wardrobe-grid')
 
   if (!trigger) return
+
+  bindOverlayWheelLock(overlay, dialog)
 
   const updateOverlayState = () => {
     updateFigureStatus(
@@ -2520,9 +2641,12 @@ function bindModuleEntryPlaceholder() {
 
   const openOverlay = async () => {
     if (!overlay) return
-    overlay.hidden = false
-    overlay.setAttribute('aria-hidden', 'false')
+    openOverlayElement(overlay)
     trigger.setAttribute('aria-expanded', 'true')
+    overlay.scrollTop = 0
+    if (dialog instanceof HTMLElement) {
+      dialog.scrollTop = 0
+    }
     syncOverlayLock()
     updateOverlayState()
     await loadWardrobeCatalog()
@@ -2531,10 +2655,12 @@ function bindModuleEntryPlaceholder() {
 
   const closeOverlay = () => {
     if (!overlay) return
-    overlay.hidden = true
-    overlay.setAttribute('aria-hidden', 'true')
+    closeOverlayElement(overlay, {
+      onHidden: () => {
+        syncOverlayLock()
+      },
+    })
     trigger.setAttribute('aria-expanded', 'false')
-    syncOverlayLock()
     trigger.focus()
   }
 
@@ -2590,6 +2716,7 @@ function bindModuleEntryPlaceholder() {
 function bindAiStylistOverlay(stylingControls = {}) {
   const trigger = document.getElementById('am-ai-trigger')
   const overlay = document.getElementById('am-ai-overlay')
+  const dialog = overlay?.querySelector('.am-ai-overlay__dialog')
   const closeButton = document.getElementById('am-ai-close')
   const aiButton = stylingControls.aiButton || document.getElementById('am-open-ai-stylist')
   const occasionSelect = document.getElementById('am-ai-occasion')
@@ -2599,6 +2726,8 @@ function bindAiStylistOverlay(stylingControls = {}) {
   if (!trigger || !overlay) {
     return
   }
+
+  bindOverlayWheelLock(overlay, dialog)
 
   let hasOpened = false
 
@@ -2612,9 +2741,12 @@ function bindAiStylistOverlay(stylingControls = {}) {
       stylingControls.closeOverlay()
     }
 
-    overlay.hidden = false
-    overlay.setAttribute('aria-hidden', 'false')
+    openOverlayElement(overlay)
     trigger.setAttribute('aria-expanded', 'true')
+    overlay.scrollTop = 0
+    if (dialog instanceof HTMLElement) {
+      dialog.scrollTop = 0
+    }
     syncOverlayLock()
     updateAiWeatherContext()
     updateAiStatus(
@@ -2629,10 +2761,12 @@ function bindAiStylistOverlay(stylingControls = {}) {
   }
 
   const closeOverlay = ({ restoreFocus = true } = {}) => {
-    overlay.hidden = true
-    overlay.setAttribute('aria-hidden', 'true')
+    closeOverlayElement(overlay, {
+      onHidden: () => {
+        syncOverlayLock()
+      },
+    })
     trigger.setAttribute('aria-expanded', 'false')
-    syncOverlayLock()
 
     if (restoreFocus) {
       if (document.getElementById('am-styling-overlay')?.hidden === false) {
@@ -2734,6 +2868,7 @@ export function initAuraMirror() {
   state.authUser = normalizeAuthUser(getStoredAuthUser())
 
   primeRuntimeState()
+  primeOverlayLayers()
   applyBaseMetadata()
   markReady()
   updateAuthNavigation()

@@ -38,6 +38,11 @@ html.am-overlay-open body {
   gap: 1.25rem;
 }
 
+.am-grid--avatar {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
 .am-fields {
   display: flex;
   flex-direction: column;
@@ -135,6 +140,28 @@ html.am-overlay-open body {
   overflow: hidden;
 }
 
+.am-panel--avatar .am-fields {
+  max-width: 34rem;
+}
+
+.am-preview-box--avatar {
+  width: min(100%, 38rem);
+  aspect-ratio: 520 / 680;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+  justify-self: center;
+}
+
+.am-preview-box--avatar canvas {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  border: 0;
+}
+
 .am-preview-box canvas {
   display: block;
   width: 100%;
@@ -144,25 +171,17 @@ html.am-overlay-open body {
   background: #160000;
 }
 
-#am-avatar-placeholder {
-  max-width: 18rem;
-  text-align: center;
-  font: 400 1.1rem / 1.35 var(--font-editorial, 'PPEditorialNew', serif);
+.am-preview-box--styling {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
 }
 
-#am-tryon-placeholder {
-  max-width: 20rem;
-  text-align: center;
-  font: 400 1.05rem / 1.4 var(--font-editorial, 'PPEditorialNew', serif);
-}
-
-#am-tryon-image {
-  display: block;
+#am-tryon-canvas {
   width: 100%;
-  height: auto;
-  max-width: 520px;
-  border: 1px solid rgba(243, 236, 229, 0.8);
-  background: #160000;
+  height: 100%;
+  max-width: none;
+  border: 0;
 }
 
 .am-preview-stage {
@@ -254,6 +273,32 @@ html.am-overlay-open body {
   position: fixed;
   inset: 0;
   z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.28s ease,
+    visibility 0.28s ease;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
+.am-styling-overlay[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .am-styling-overlay__backdrop {
@@ -261,17 +306,22 @@ html.am-overlay-open body {
   inset: 0;
   background: rgba(22, 0, 0, 0.62);
   backdrop-filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.am-styling-overlay[data-open='true'] .am-styling-overlay__backdrop {
+  opacity: 1;
 }
 
 .am-styling-overlay__dialog {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(72rem, calc(100vw - 2rem));
+  position: relative;
+  width: min(72rem, 100%);
   max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
   overflow: auto;
-
-  transform: translate(-50%, -50%);
+  scrollbar-width: none;
   border: 1px solid var(--color-secondary, #160000);
   background:
     linear-gradient(180deg, rgba(244, 12, 63, 0.09), transparent 25%),
@@ -279,6 +329,21 @@ html.am-overlay-open body {
   box-shadow: 0 2rem 4rem rgba(0, 0, 0, 0.28);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  opacity: 0;
+  transform: translate3d(0, 1rem, 0) scale(0.985);
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+  will-change: opacity, transform;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.am-styling-overlay[data-open='true'] .am-styling-overlay__dialog {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .am-styling-overlay__header {
@@ -450,6 +515,32 @@ html.am-overlay-open body {
   position: fixed;
   inset: 0;
   z-index: 46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.28s ease,
+    visibility 0.28s ease;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
+.am-ai-overlay[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .am-ai-overlay__backdrop {
@@ -457,16 +548,22 @@ html.am-overlay-open body {
   inset: 0;
   background: rgba(14, 4, 6, 0.72);
   backdrop-filter: blur(10px);
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.am-ai-overlay[data-open='true'] .am-ai-overlay__backdrop {
+  opacity: 1;
 }
 
 .am-ai-overlay__dialog {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(76rem, calc(100vw - 2rem));
+  position: relative;
+  width: min(76rem, 100%);
   max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
   overflow: auto;
-  transform: translate(-50%, -50%);
+  scrollbar-width: none;
   border: 1px solid var(--color-secondary, #160000);
   background:
     radial-gradient(circle at top right, rgba(244, 12, 63, 0.12), transparent 42%),
@@ -475,6 +572,21 @@ html.am-overlay-open body {
   box-shadow: 0 2rem 4rem rgba(0, 0, 0, 0.32);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  opacity: 0;
+  transform: translate3d(0, 1rem, 0) scale(0.985);
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+  will-change: opacity, transform;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.am-ai-overlay[data-open='true'] .am-ai-overlay__dialog {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .am-ai-overlay__header {
@@ -552,20 +664,17 @@ html.am-overlay-open body {
 
 .am-preview-box--ai {
   min-height: 36rem;
-}
-
-#am-ai-visual-placeholder {
-  max-width: 20rem;
-  text-align: center;
-  font: 400 1.05rem / 1.4 var(--font-editorial, 'PPEditorialNew', serif);
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
 }
 
 #am-ai-canvas {
   display: block;
   width: 100%;
-  height: auto;
-  max-width: 520px;
-  border: 1px solid rgba(243, 236, 229, 0.8);
+  height: 100%;
+  max-width: none;
+  border: 0;
   background: #160000;
 }
 
@@ -958,6 +1067,11 @@ html.am-overlay-open body {
     grid-template-columns: 1fr;
   }
 
+  .am-preview-box--avatar {
+    width: 100%;
+    min-height: 0;
+  }
+
   .am-preview-box {
     min-height: 28rem;
   }
@@ -1020,14 +1134,20 @@ html.am-overlay-open body {
     min-height: 22rem;
   }
 
+  .am-preview-box--avatar {
+    min-height: 0;
+  }
+
   .am-styling-overlay__dialog {
-    width: calc(100vw - 1rem);
+    width: 100%;
     max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
   }
 
   .am-ai-overlay__dialog {
-    width: calc(100vw - 1rem);
+    width: 100%;
     max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
   }
 
   .am-styling-overlay__header,

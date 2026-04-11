@@ -39,18 +39,18 @@ const modules = [
       <h2 class="s__title">Avatar Studio</h2>
 
       <div class="s__content">
-        <p>
+        <p class="am-intro-copy">
           AuraMirror starts by importing real portrait photos and turning them into a
           reusable virtual identity for every later styling decision.
         </p>
 
-        <p>
+        <p class="am-intro-copy">
           This first module establishes the avatar pipeline we will use for wardrobe
           selection, AI recommendations, and future try-on rendering.
         </p>
 
-        <div class="am-panel" id="am-avatar-panel">
-          <div class="am-grid">
+        <div class="am-panel am-panel--avatar" id="am-avatar-panel">
+          <div class="am-grid am-grid--avatar">
             <div class="am-fields">
               <label class="am-label">
                 Upload Portrait Photo
@@ -66,24 +66,18 @@ const modules = [
                 <button id="am-photo-trigger" class="am-button" type="button">
                   Choose File
                 </button>
-                <span id="am-photo-status" class="am-file-status">No file selected</span>
               </div>
 
               <button id="am-generate-avatar" class="am-button" type="button">
                 Generate Virtual Avatar
               </button>
 
-              <p class="am-note">
+              <p class="am-note am-note--avatar">
                 Tip: use a frontal portrait photo for cleaner local preview alignment.
-              </p>
-
-              <p id="am-figure-status" class="am-status">
-                Upload a portrait to begin the Avatar Studio pipeline.
               </p>
             </div>
 
-            <div class="am-preview-box" id="am-avatar-preview-box">
-              <span id="am-avatar-placeholder">No avatar generated yet</span>
+            <div class="am-preview-box am-preview-box--avatar" id="am-avatar-preview-box">
               <canvas
                 id="am-avatar-canvas"
                 width="520"
@@ -151,17 +145,7 @@ const modules = [
             </div>
 
             <div class="am-preview-box am-preview-box--styling am-preview-stage__viewport">
-              <span id="am-tryon-placeholder"
-                >Open Wardrobe, choose garments, then apply them to render the try-on
-                preview here.</span
-              >
-              <img id="am-tryon-image" alt="Virtual styling preview" hidden />
-              <canvas
-                id="am-tryon-canvas"
-                width="520"
-                height="680"
-                hidden
-              ></canvas>
+              <canvas id="am-tryon-canvas" width="520" height="680"></canvas>
             </div>
           </div>
 
@@ -180,6 +164,7 @@ const modules = [
 
         <div
           class="am-styling-overlay__dialog"
+          data-lenis-prevent
           role="dialog"
           aria-modal="true"
           aria-labelledby="am-styling-title"
@@ -275,6 +260,7 @@ const modules = [
 
         <div
           class="am-ai-overlay__dialog"
+          data-lenis-prevent
           role="dialog"
           aria-modal="true"
           aria-labelledby="am-ai-title"
@@ -353,15 +339,7 @@ const modules = [
 
                 <div class="am-ai-visual">
                   <div class="am-preview-box am-preview-box--ai">
-                    <span id="am-ai-visual-placeholder"
-                      >Recommendation visuals will render here after the next phase.</span
-                    >
-                    <canvas
-                      id="am-ai-canvas"
-                      width="520"
-                      height="680"
-                      hidden
-                    ></canvas>
+                    <canvas id="am-ai-canvas" width="520" height="680"></canvas>
                   </div>
                 </div>
               </div>
@@ -413,6 +391,7 @@ const modules = [
     lines: any[]
     isPaused: boolean
     isForced: boolean
+    resizeObserver: ResizeObserver | null
 
     constructor() {
       this.el = document.querySelector('.s-about')
@@ -424,6 +403,7 @@ const modules = [
       this.lines = []
       this.isPaused = true
       this.isForced = false
+      this.resizeObserver = null
 
       if (document.readyState === 'complete') {
         Ticker.nextTick(this.init, this)
@@ -435,6 +415,7 @@ const modules = [
     init() {
       this.setSize()
       this.setScroll()
+      this.setLines()
       this.bindEvents()
 
       if (this.el.classList.contains('is-in-view') && this.isPaused) {
@@ -446,6 +427,18 @@ const modules = [
     bindEvents() {
       Emitter.on('resize', this.onResize, this)
       Emitter.on('scroll', this.onScroll, this)
+
+      if ('ResizeObserver' in window) {
+        this.resizeObserver = new ResizeObserver(() => {
+          this.setSize()
+          this.setScroll()
+          this.setLines()
+          this.isForced = true
+        })
+
+        this.resizeObserver.observe(this.el)
+        this.resizeObserver.observe(this.inner)
+      }
 
       const observer = new IntersectionObserver(
         (entries) => {
@@ -563,6 +556,8 @@ const modules = [
         y2: innerY + bounding.innerHeight,
       }
       const corners = []
+      const topBands = []
+      const bottomBands = []
 
       corners.push([
         { x: outer.x1, y: outer.y1 },
@@ -604,6 +599,7 @@ const modules = [
           x: l2[0].x + (l2[1].x - l2[0].x) * index,
           y: l2[0].y + (l2[1].y - l2[0].y) * index,
         }
+        topBands.push([p1, p2])
         this.lines.push([p1, p2])
       }
 
@@ -618,8 +614,18 @@ const modules = [
           x: l2[0].x + (l2[1].x - l2[0].x) * index,
           y: l2[0].y + (l2[1].y - l2[0].y) * index,
         }
+        bottomBands.push([p1, p2])
         this.lines.push([p1, p2])
       }
+
+      topBands.forEach((band, index) => {
+        const bottomBand = bottomBands[index]
+
+        if (!bottomBand) return
+
+        this.lines.push([band[0], bottomBand[0]])
+        this.lines.push([band[1], bottomBand[1]])
+      })
 
       for (let i = 0; i <= vLines; i++) {
         this.lines.push([
@@ -736,6 +742,18 @@ const modules = [
 
       p {
         margin: 0 0 1.25em;
+      }
+
+      .am-intro-copy {
+        max-width: 31rem;
+        font: 400 1.02rem / 1.6 var(--font-editorial, 'PPEditorialNew', serif);
+        letter-spacing: 0.01em;
+      }
+
+      .am-note--avatar {
+        margin: 0;
+        font-size: 0.84rem;
+        line-height: 1.5;
       }
     }
 
