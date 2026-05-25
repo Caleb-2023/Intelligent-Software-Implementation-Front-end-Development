@@ -728,6 +728,16 @@ async function requestRemoteRecommendation() {
     throw new Error('No API token available for remote recommendation mode.')
   }
 
+  if (!state.figureId) {
+    throw new Error('Please generate an AI avatar first before requesting recommendations.')
+  }
+
+  const context = buildRecommendationContext()
+  const weatherStr = context.city
+    ? `${context.city} ${context.temperatureC || ''}°C ${context.weatherLabel || ''}`
+    : ''
+
+  // Step 1: Submit async recommendation task
   const response = await fetch(API_ENDPOINTS.recommendations, {
     method: 'POST',
     headers: {
@@ -735,10 +745,11 @@ async function requestRemoteRecommendation() {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      occasion: state.selections.occasion,
-      weather: buildRecommendationContext(),
-      figure_id: state.figureId || undefined,
-      cloth_ids: state.selectedClothIds,
+      figure_id: state.figureId,
+      occasion: state.selections.occasion || context.occasion || '',
+      weather: weatherStr,
+      style: '',
+      gender: '',
     }),
   })
 
@@ -747,9 +758,30 @@ async function requestRemoteRecommendation() {
   }
 
   const payload = await response.json().catch(() => null)
-  const data = payload?.data || payload
+  if (!payload?.success) {
+    throw new Error(payload?.message || 'Recommendation request failed')
+  }
+
+  const taskId = payload?.data?.task_id
+  if (!taskId) {
+    throw new Error('No task_id returned from recommendation request')
+  }
+
+  // Step 2: Poll task status
+  const taskResult = await pollTaskStatus(taskId, (data) => {
+    const elapsed = Math.round(data.elapsed_seconds || 0)
+    updateAiStatus(`AI recommendation processing... ${data.progress || 'working'} (${elapsed}s)`)
+  })
+
+  // Step 3: Parse result
+  const outfits = taskResult.result?.outfits || []
+  const bestOutfit = outfits[0] || {}
   const cloths = getSelectedCloths()
-  const context = buildRecommendationContext()
+
+  const items = Array.isArray(bestOutfit.items) ? bestOutfit.items : []
+  const bulletPoints = items.map((item) =>
+    `${item.source || 'item'}: ${item.item_id || 'unknown'}${item.score ? ` (score: ${item.score.toFixed(2)})` : ''}`
+  )
 
   return {
     mode: 'api',
@@ -757,17 +789,17 @@ async function requestRemoteRecommendation() {
     cloths,
     context,
     generatedAt: Date.now(),
-    headline: String(data?.headline || `${context.occasion} recommendation`),
-    summary: String(
-      data?.summary || data?.recommendation || `Remote stylist response received for ${context.occasion}.`
-    ),
+    headline: String(bestOutfit.name || `${context.occasion || 'AI'} recommendation`),
+    summary: String(bestOutfit.description || 'AI stylist recommendation generated.'),
     rationale: String(
-      data?.rationale ||
-        'The remote stylist blended selected garments with weather context and occasion intent.'
+      bestOutfit.description ||
+        'The AI stylist analyzed your wardrobe and recommended the best outfit combination.'
     ),
-    bulletPoints: Array.isArray(data?.bullet_points)
-      ? data.bullet_points.map(String).slice(0, 4)
-      : createLocalRecommendation().bulletPoints,
+    bulletPoints: bulletPoints.length > 0
+      ? bulletPoints.slice(0, 4)
+      : ['AI recommendation completed'],
+    imageUrl: bestOutfit.image_url || '',
+    scores: bestOutfit.scores || {},
   }
 }
 
@@ -779,22 +811,24 @@ async function requestLogin(credentials) {
     throw new Error('Email and password are required.')
   }
 
-  const users = readStoredUsers()
-  const match = users.find((user) => String(user.email || '').toLowerCase() === email)
-
-  if (!match) {
-    throw new Error('Account not found. Register first.')
+  const resp = await fetch(API_ENDPOINTS.authLogin, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mail: email, password }),
+  })
+  const json = await resp.json()
+  if (!resp.ok || !json.success) {
+    throw new Error(json.message || 'Login failed')
   }
 
-  if (String(match.password || '') !== password) {
-    throw new Error('Incorrect password.')
-  }
-
-  const user = normalizeAuthUser(match)
-  return {
-    token: createSessionToken(email),
-    user,
-  }
+  const data = json.data || {}
+  const user = normalizeAuthUser({
+    id: data.user?._id,
+    name: data.user?.name,
+    email: data.user?.mail,
+    createdAt: data.user?.date_create ? new Date(data.user.date_create).getTime() : Date.now(),
+  })
+  return { token: data.token, user }
 }
 
 async function requestRegister(payloadInput) {
@@ -810,29 +844,24 @@ async function requestRegister(payloadInput) {
     throw new Error('Password must be at least 6 characters.')
   }
 
-  const users = readStoredUsers()
-  const exists = users.some((user) => String(user.email || '').toLowerCase() === email)
-
-  if (exists) {
-    throw new Error('This email is already registered.')
+  const resp = await fetch(API_ENDPOINTS.authRegister, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, mail: email, password }),
+  })
+  const json = await resp.json()
+  if (!resp.ok || !json.success) {
+    throw new Error(json.message || 'Registration failed')
   }
 
-  const createdAt = Date.now()
-  const record = {
-    id: `local-user-${email}`,
-    name,
-    email,
-    password,
-    createdAt,
-  }
-
-  users.push(record)
-  saveStoredUsers(users)
-
-  return {
-    token: createSessionToken(email),
-    user: normalizeAuthUser(record),
-  }
+  const data = json.data || {}
+  const user = normalizeAuthUser({
+    id: data.user?._id,
+    name: data.user?.name,
+    email: data.user?.mail,
+    createdAt: data.user?.date_create ? new Date(data.user.date_create).getTime() : Date.now(),
+  })
+  return { token: data.token, user }
 }
 
 function applyAuthenticatedSession({ token, user }) {
@@ -2298,6 +2327,12 @@ async function requestRemoteTryOn() {
   const token = getApiToken()
   if (!token || !state.selectedClothIds.length) return null
 
+  if (!state.figureId) {
+    throw new Error('Please generate an AI avatar first before trying on clothes.')
+  }
+
+  updatePreviewStageStatus('Submitting try-on', 'Sending request to AI backend...')
+
   const response = await fetch(API_ENDPOINTS.tryons, {
     method: 'POST',
     headers: {
@@ -2305,9 +2340,8 @@ async function requestRemoteTryOn() {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      figure_id: state.figureId || undefined,
+      figure_id: state.figureId,
       cloth_ids: state.selectedClothIds,
-      avatar_data_url: state.figureId ? undefined : state.avatarDataUrl,
     }),
   })
 
@@ -2316,74 +2350,172 @@ async function requestRemoteTryOn() {
   }
 
   const payload = await response.json().catch(() => null)
-  return payload?.data || payload || null
+  if (!payload?.success) {
+    throw new Error(payload?.message || 'Try-on request failed')
+  }
+
+  const data = payload?.data || {}
+  const taskId = data.task_id
+  const tryonId = data.tryon_id || data.tryon?._id || ''
+
+  if (!taskId) {
+    return { tryon_id: tryonId, image_url: data.image_url || '' }
+  }
+
+  // Poll for async result
+  updatePreviewStageStatus('Generating try-on', 'AI is rendering the virtual fitting...')
+  const taskResult = await pollTaskStatus(taskId, (taskData) => {
+    const elapsed = Math.round(taskData.elapsed_seconds || 0)
+    updatePreviewStageStatus('Generating try-on', `AI rendering... ${taskData.progress || 'processing'} (${elapsed}s)`)
+  })
+
+  const imageUrl = taskResult.result?.image_url || taskResult.result?.tryon_image_url || ''
+  return { tryon_id: tryonId, image_url: imageUrl }
+}
+
+async function pollTaskStatus(taskId, onProgress) {
+  const token = getApiToken()
+  const maxAttempts = 120
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((r) => setTimeout(r, 3000))
+    try {
+      const resp = await fetch(`${API_ENDPOINTS.tasks}/${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!resp.ok) continue
+      const json = await resp.json()
+      const data = json.data || {}
+      if (onProgress) onProgress(data)
+      if (data.status === 'completed') return data
+      if (data.status === 'failed') throw new Error(data.error || 'Task failed')
+    } catch (err) {
+      if (err.message === 'Task failed' || err.message.includes('failed')) throw err
+    }
+  }
+  throw new Error('Task timed out')
 }
 
 async function renderAvatar() {
   const canvas = document.getElementById('am-avatar-canvas')
   if (!canvas) return
 
-  if (!state.uploadedPhoto) {
+  if (!state.uploadedPhotoFile) {
     updateFigureStatus('Choose a portrait photo before generating the avatar.')
     return
   }
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    throw new Error('Avatar canvas unavailable')
+  const token = getApiToken()
+  if (!token) {
+    updateFigureStatus('Please log in first to generate AI avatar.')
+    return
   }
 
-  const image = await loadImage(state.uploadedPhoto)
+  // Show loading state with uploaded photo as placeholder
+  const ctx = canvas.getContext('2d')
+  if (ctx && state.uploadedPhoto) {
+    const previewImg = await loadImage(state.uploadedPhoto)
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = '#160000'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.save()
+    ctx.globalAlpha = 0.4
+    drawCoverImage(ctx, previewImg, canvas.width, canvas.height)
+    ctx.restore()
+    ctx.fillStyle = '#f3ece5'
+    ctx.font = '700 18px "PPFraktionMono", monospace'
+    ctx.fillText('GENERATING AI AVATAR...', 34, 48)
+    ctx.font = '400 13px "PPFraktionMono", monospace'
+    ctx.fillText('This may take up to 2 minutes', 34, 72)
+  }
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  state.figureStatus = 'generating'
+  updateFigureStatus('Uploading portrait and generating AI avatar... Please wait.')
 
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
-  gradient.addColorStop(0, '#f40c3f')
-  gradient.addColorStop(0.5, '#160000')
-  gradient.addColorStop(1, '#f3ece5')
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  // Step 1: Upload photo to backend
+  const formData = new FormData()
+  formData.append('file', state.uploadedPhotoFile)
 
-  ctx.save()
-  ctx.globalAlpha = 0.96
-  drawCoverImage(ctx, image, canvas.width, canvas.height)
-  ctx.restore()
-
-  ctx.save()
-  ctx.fillStyle = 'rgba(22, 0, 0, 0.28)'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.restore()
-
-  ctx.save()
-  ctx.strokeStyle = 'rgba(243, 236, 229, 0.95)'
-  ctx.lineWidth = 2
-  ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36)
-  ctx.restore()
-
-  ctx.save()
-  ctx.fillStyle = '#f3ece5'
-  ctx.font = '700 18px "PPFraktionMono", monospace'
-  ctx.fillText('AURAMIRROR AVATAR', 34, 48)
-  ctx.font = '400 13px "PPFraktionMono", monospace'
-  ctx.fillText('Preview-first identity scaffold', 34, 72)
-  ctx.restore()
-
-  state.avatarDataUrl = canvas.toDataURL('image/png')
-  state.figureStatus = 'ready'
-
-  updateAvatarPreviewState({ hasAvatar: true })
-  updateFigureStatus(
-    'Virtual avatar generated locally and ready for downstream modules.'
-  )
-  await renderPreviewFromAvatar()
-
-  document.dispatchEvent(
-    new CustomEvent('am:avatar-ready', {
-      detail: {
-        avatarDataUrl: state.avatarDataUrl,
-      },
+  let taskId, figureId
+  try {
+    const uploadResp = await fetch(API_ENDPOINTS.figures, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
     })
-  )
+    const uploadJson = await uploadResp.json()
+    if (!uploadResp.ok || !uploadJson.success) {
+      throw new Error(uploadJson.message || 'Upload failed')
+    }
+    taskId = uploadJson.data?.task_id
+    figureId = uploadJson.data?.figure?._id
+  } catch (err) {
+    state.figureStatus = 'idle'
+    updateFigureStatus(`Upload failed: ${err.message}`)
+    throw err
+  }
+
+  updateFigureStatus(`AI avatar generating... Task: ${taskId}`)
+
+  // Step 2: Poll task status until complete
+  try {
+    const result = await pollTaskStatus(taskId, (data) => {
+      const elapsed = Math.round(data.elapsed_seconds || 0)
+      updateFigureStatus(
+        `AI avatar generating... ${data.progress || 'processing'} (${elapsed}s)`
+      )
+    })
+
+    // Step 3: Load the AI-generated avatar image
+    const avatarUrl = result.result?.avatar_url || result.result?.image_url || ''
+    if (!avatarUrl) {
+      throw new Error('No avatar image returned from AI')
+    }
+
+    const avatarImage = await loadImage(avatarUrl)
+
+    // Draw AI avatar on canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+    gradient.addColorStop(0, '#f40c3f')
+    gradient.addColorStop(0.5, '#160000')
+    gradient.addColorStop(1, '#f3ece5')
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.save()
+    ctx.globalAlpha = 0.96
+    drawCoverImage(ctx, avatarImage, canvas.width, canvas.height)
+    ctx.restore()
+    ctx.save()
+    ctx.strokeStyle = 'rgba(243, 236, 229, 0.95)'
+    ctx.lineWidth = 2
+    ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36)
+    ctx.restore()
+    ctx.save()
+    ctx.fillStyle = '#f3ece5'
+    ctx.font = '700 18px "PPFraktionMono", monospace'
+    ctx.fillText('AURAMIRROR AI AVATAR', 34, 48)
+    ctx.font = '400 13px "PPFraktionMono", monospace'
+    ctx.fillText('Generated by AI backend', 34, 72)
+    ctx.restore()
+
+    state.avatarDataUrl = canvas.toDataURL('image/png')
+    state.figureId = figureId || ''
+    state.figureStatus = 'ready'
+
+    updateAvatarPreviewState({ hasAvatar: true })
+    updateFigureStatus('AI avatar generated successfully!')
+    await renderPreviewFromAvatar()
+
+    document.dispatchEvent(
+      new CustomEvent('am:avatar-ready', {
+        detail: { avatarDataUrl: state.avatarDataUrl },
+      })
+    )
+  } catch (err) {
+    state.figureStatus = 'idle'
+    updateFigureStatus(`AI avatar generation failed: ${err.message}`)
+    throw err
+  }
 }
 
 async function handleTryOnRequest(closeOverlay) {
@@ -2494,9 +2626,12 @@ async function loadWardrobeCatalog({ force = false } = {}) {
     }
 
     const payload = await response.json().catch(() => null)
-    const cloths = Array.isArray(payload?.data)
-      ? payload.data.map(normalizeCloth).filter((item) => item._id)
-      : []
+    const rawCloths = Array.isArray(payload?.data?.cloths)
+      ? payload.data.cloths
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+    const cloths = rawCloths.map(normalizeCloth).filter((item) => item._id)
 
     if (!cloths.length) {
       const fallbackItems = FALLBACK_CLOTHS.map(normalizeCloth)

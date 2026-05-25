@@ -16,9 +16,11 @@ export const STORAGE_KEYS = {
 export const API_ENDPOINTS = {
   cloths: `${API_BASE_URL}/cloths`,
   tryons: `${API_BASE_URL}/tryons`,
-  recommendations: `${API_BASE_URL}/recommendations`,
+  recommendations: `${API_BASE_URL}/styles/ai-recommend`,
   authLogin: `${API_BASE_URL}/auth/login`,
   authRegister: `${API_BASE_URL}/auth/register`,
+  figures: `${API_BASE_URL}/figures`,
+  tasks: `${API_BASE_URL}/tasks`,
 }
 export const DEFAULT_WEATHER_CONTEXT = {
   city: 'Fallback Studio',
