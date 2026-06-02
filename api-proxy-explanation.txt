@@ -1,0 +1,52 @@
+前端 /api 代理到后端方案说明
+================================
+
+一、当前代码的请求方式
+-----------------------
+前端代码使用相对路径发起请求，以 /api 为前缀。
+例如 src/auramirror/config.js 中：
+
+  API_BASE_URL = '/api'
+  API_ENDPOINTS = {
+    upload: '/api/upload',
+    styling: '/api/styling',
+    ...
+  }
+
+所有 fetch('/api/...') 请求由浏览器发往当前页面的同源地址，
+前端代码本身不关心后端地址是什么。
+
+二、开发环境（npm run dev → localhost:4321）
+----------------------------------------------
+浏览器向 localhost:4321/api/* 发请求，但 Astro 开发服务器上并没有 /api 路由。
+此时需要在 astro.config.mjs 的 vite.server.proxy 中配置代理，
+将匹配 /api 的请求转发到后端 localhost:3000：
+
+  vite: {
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+        }
+      }
+    }
+  }
+
+该代理仅在 npm run dev 时由 Vite 开发服务器生效。
+
+三、生产环境（npm run build → dist/ 静态文件）
+------------------------------------------------
+生产环境无 Vite 开发服务器。Astro 构建产物为纯静态文件，
+部署到 https://public.wodniack.dev。
+同域下由 Nginx 反向代理将 /api/* 请求转发到后端 localhost:3000：
+
+  location /api/ {
+      proxy_pass http://localhost:3000;
+  }
+
+四、总结
+---------
+前端代码全程只写 /api/* 相对路径，不感知后端地址。
+开发环境通过 Vite proxy 将 /api 转发到 localhost:3000，
+生产环境通过 Nginx 反向代理将 /api 转发到 localhost:3000。
