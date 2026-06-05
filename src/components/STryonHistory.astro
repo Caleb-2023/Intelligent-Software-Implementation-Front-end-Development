@@ -1,0 +1,887 @@
+---
+/**
+ * STryonHistory.astro — “Try-On History” (试穿记录)
+ *
+ * Self-contained new page: own <script> self-initializes (like SHero/SWork/SCTA),
+ * so no edits to auramirror/index.js are required. Shared request logic lives in
+ * auramirror/shared/api.js. Styles are `is:global` but every selector is namespaced
+ * under the `am-tryh-` prefix so cards rendered via innerHTML still receive styling
+ * while staying collision-free with existing `am-*` rules.
+ *
+ * Detail uses a full-screen image overlay, mirroring the existing am-ai-overlay /
+ * am-styling-overlay pattern (backdrop + [data-open] + Escape close). The overlay is
+ * moved to <body> on init to escape the .site-wrapper clip-path.
+ *
+ * Cross-page contract: dispatches `am:open-feedback`
+ *   ({ targetType: 'tryon', targetId, context }) so the Feedback widget can open.
+ */
+---
+
+<section id="am-tryh-section" class="am-tryh-section" data-intersect aria-label="Try-on history">
+  <div class="am-tryh-grid" aria-hidden="true">
+    <svg class="am-tryh-grid__svg" aria-hidden="true" focusable="false">
+      <path class="am-tryh-grid__path" d=""></path>
+    </svg>
+  </div>
+
+  <div class="am-tryh-shell">
+    <div class="am-tryh-panel">
+      <header class="am-tryh-panel__header">
+        <div>
+          <p class="am-tryh-eyebrow">Try-On Records</p>
+          <h2 class="am-tryh-title">Try-On History</h2>
+        </div>
+
+        <button
+          id="am-tryh-refresh"
+          class="am-button am-button--ghost"
+          type="button"
+          aria-label="Refresh try-on history"
+        >
+          Refresh
+        </button>
+      </header>
+
+      <p id="am-tryh-status" class="am-tryh-status" role="status" aria-live="polite" hidden></p>
+
+      <div id="am-tryh-list" class="am-tryh-list" aria-label="Saved try-on results">
+        <div class="am-empty-state">Loading your try-on history…</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="am-tryh-overlay" class="am-tryh-overlay" hidden aria-hidden="true">
+    <div class="am-tryh-overlay__backdrop" data-am-tryh-close></div>
+
+    <div
+      class="am-tryh-overlay__dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Try-on detail"
+    >
+      <header class="am-tryh-overlay__header">
+        <p class="am-tryh-overlay__eyebrow">Try-On Preview</p>
+        <button
+          id="am-tryh-overlay-close"
+          class="am-styling-close"
+          type="button"
+          data-am-tryh-close
+          aria-label="Close try-on detail"
+        >
+          Close
+        </button>
+      </header>
+
+      <div id="am-tryh-overlay-body" class="am-tryh-overlay__body">
+        <div class="am-empty-state">Loading try-on detail…</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import Emitter from '../utils/Emitter'
+  import Ticker from '../utils/Ticker'
+  import { API_BASE_URL } from '../auramirror/config.js'
+  import { escapeHtml } from '../auramirror/dom'
+  import {
+    getApiToken,
+    authHeaders,
+    apiFetch,
+    resolveAssetUrl,
+  } from '../auramirror/shared/api.js'
+  import { createRippleGrid } from '../auramirror/shared/grid.js'
+
+  const TRYONS_URL = `${API_BASE_URL}/tryons`
+  const OVERLAY_TRANSITION_MS = 280
+
+  class TryonHistory {
+    constructor() {
+      this.el = document.getElementById('am-tryh-section')
+      if (!this.el) return
+
+      this.listEl = this.el.querySelector('#am-tryh-list')
+      this.statusEl = this.el.querySelector('#am-tryh-status')
+      this.refreshBtn = this.el.querySelector('#am-tryh-refresh')
+      this.overlay = this.el.querySelector('#am-tryh-overlay')
+      this.overlayBody = this.overlay?.querySelector('#am-tryh-overlay-body')
+
+      this.tryons = []
+      this.confirmingId = null
+      this.detailId = null
+      this.lastFocused = null
+      this.hideTimer = 0
+
+      if (document.readyState === 'complete') {
+        Ticker.nextTick(this.init, this)
+      } else {
+        Emitter.once('siteLoaded', this.init, this)
+      }
+    }
+
+    init() {
+      // Move the overlay to <body> so it isn't clipped by the .site-wrapper clip-path.
+      if (this.overlay && this.overlay.parentElement !== document.body) {
+        document.body.appendChild(this.overlay)
+      }
+
+      this.initGrid()
+      this.bindEvents()
+      this.load()
+    }
+
+    initGrid() {
+      const gridEl = this.el.querySelector('.am-tryh-grid')
+      const gridPath = this.el.querySelector('.am-tryh-grid__path')
+      if (gridEl && gridPath) this.grid = createRippleGrid(gridEl, gridPath)
+    }
+
+    bindEvents() {
+      this.refreshBtn?.addEventListener('click', () => this.load())
+      this.listEl?.addEventListener('click', this.onListClick.bind(this))
+
+      this.overlay?.addEventListener('click', (event) => {
+        if (event.target.closest('[data-am-tryh-close]')) {
+          this.closeOverlay()
+        }
+      })
+      this.overlayBody?.addEventListener('click', this.onOverlayBodyClick.bind(this))
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && this.overlay?.dataset.open === 'true') {
+          this.closeOverlay()
+        }
+      })
+    }
+
+    /* ---------- data ---------- */
+
+    async load() {
+      if (!this.listEl) return
+
+      if (!getApiToken()) {
+        this.renderAuthGate()
+        return
+      }
+
+      this.clearStatus()
+      this.listEl.innerHTML =
+        '<div class="am-empty-state">Loading your try-on history…</div>'
+
+      try {
+        const data = await apiFetch(TRYONS_URL, { headers: authHeaders() })
+        const items = Array.isArray(data)
+          ? data
+          : data?.tryons || data?.data?.tryons || []
+        this.tryons = items
+          .map((item) => this.normalizeTryon(item))
+          .filter((item) => item.id)
+        this.renderList()
+      } catch (error) {
+        this.renderError(error)
+      }
+    }
+
+    normalizeTryon(raw) {
+      const clothIds = Array.isArray(raw?.cloth_ids)
+        ? raw.cloth_ids
+        : Array.isArray(raw?.clothIds)
+          ? raw.clothIds
+          : []
+
+      return {
+        id: String(raw?.tryon_id || raw?._id || raw?.id || ''),
+        figureId: String(raw?.figure_id || raw?.figureId || ''),
+        clothIds: clothIds.map(String),
+        imageUrl: String(raw?.result_image_url || raw?.resultImageUrl || raw?.image_url || ''),
+        imageUri: String(raw?.result_image_uri || raw?.resultImageUri || ''),
+        status: String(raw?.status || 'completed'),
+      }
+    }
+
+    bestImageUrl(tryon) {
+      return resolveAssetUrl(tryon.imageUrl || tryon.imageUri)
+    }
+
+    formatStatus(status) {
+      const map = {
+        completed: 'Ready',
+        ready: 'Ready',
+        processing: 'Generating…',
+        pending: 'Pending',
+        failed: 'Failed',
+      }
+      const key = String(status || '').toLowerCase()
+      if (map[key]) return map[key]
+      return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'
+    }
+
+    isProcessing(status) {
+      const key = String(status || '').toLowerCase()
+      return key === 'processing' || key === 'pending'
+    }
+
+    garmentLabel(count) {
+      return `${count} garment${count === 1 ? '' : 's'}`
+    }
+
+    shortenId(id) {
+      return id.length > 16 ? `${id.slice(0, 6)}…${id.slice(-5)}` : id
+    }
+
+    /* ---------- list rendering ---------- */
+
+    renderList() {
+      if (!this.listEl) return
+
+      if (!this.tryons.length) {
+        this.listEl.innerHTML =
+          '<div class="am-empty-state">No try-on results yet. Generate a virtual try-on to see it here.</div>'
+        return
+      }
+
+      this.listEl.innerHTML = this.tryons.map((tryon) => this.cardHtml(tryon)).join('')
+      this.attachImageFallbacks()
+    }
+
+    cardHtml(tryon) {
+      const safeId = escapeHtml(tryon.id)
+      const confirming = tryon.id === this.confirmingId
+      const processing = this.isProcessing(tryon.status)
+      const thumbUrl = this.bestImageUrl(tryon)
+
+      const media =
+        thumbUrl && !processing
+          ? `<span class="am-tryh-card__thumb" data-action="view">
+               <img class="am-tryh-card__img" src="${escapeHtml(thumbUrl)}" alt="Try-on ${safeId}" loading="lazy" />
+               <span class="am-tryh-card__fallback" hidden>Preview unavailable</span>
+             </span>`
+          : `<span class="am-tryh-card__thumb${processing ? ' is-processing' : ''}">
+               <span class="am-tryh-card__fallback">${processing ? 'Generating…' : 'No preview'}</span>
+             </span>`
+
+      const actions = confirming
+        ? `<button class="am-button am-tryh-card__action" type="button" data-action="confirm-delete">Confirm</button>
+           <button class="am-button am-button--ghost am-tryh-card__action" type="button" data-action="cancel-delete">Cancel</button>`
+        : `<button class="am-button am-tryh-card__action" type="button" data-action="view"${thumbUrl ? '' : ' disabled'}>View</button>
+           <button class="am-button am-button--ghost am-tryh-card__action" type="button" data-action="feedback">Feedback</button>
+           <button class="am-button am-button--ghost am-tryh-card__action" type="button" data-action="delete">Delete</button>`
+
+      return `
+        <article class="am-tryh-card" data-tryon-id="${safeId}">
+          ${media}
+          <span class="am-tryh-card__eyebrow">Try-On</span>
+          <strong class="am-tryh-card__title">${escapeHtml(this.shortenId(tryon.id))}</strong>
+          <span class="am-tryh-card__meta am-tryh-card__status" data-state="${escapeHtml(String(tryon.status || 'unknown').toLowerCase())}">${escapeHtml(this.formatStatus(tryon.status))}</span>
+          <span class="am-tryh-card__meta">1 figure · ${escapeHtml(this.garmentLabel(tryon.clothIds.length))}</span>
+          <span class="am-tryh-card__actions">${actions}</span>
+        </article>`
+    }
+
+    attachImageFallbacks() {
+      this.listEl.querySelectorAll('.am-tryh-card__img').forEach((img) => {
+        img.addEventListener(
+          'error',
+          () => {
+            img.style.display = 'none'
+            const fallback = img.parentElement?.querySelector('.am-tryh-card__fallback')
+            if (fallback) fallback.hidden = false
+          },
+          { once: true }
+        )
+      })
+    }
+
+    renderAuthGate() {
+      if (this.listEl) {
+        this.listEl.innerHTML =
+          '<div class="am-empty-state">Sign in to view your try-on history.</div>'
+      }
+    }
+
+    renderError(error) {
+      if (!this.listEl) return
+      this.listEl.innerHTML = `
+        <div class="am-empty-state am-tryh-error">
+          <p>Couldn’t load your try-on history: ${escapeHtml(this.errorMessage(error))}</p>
+          <button class="am-button am-button--ghost" type="button" data-action="retry">Retry</button>
+        </div>`
+    }
+
+    /* ---------- list interaction ---------- */
+
+    onListClick(event) {
+      const trigger = event.target.closest('[data-action]')
+      if (!trigger) return
+
+      const action = trigger.getAttribute('data-action')
+      if (action === 'retry') {
+        this.load()
+        return
+      }
+
+      const card = event.target.closest('[data-tryon-id]')
+      const id = card?.getAttribute('data-tryon-id')
+      if (!id) return
+
+      if (action === 'view') this.openDetail(id)
+      else if (action === 'feedback') this.requestFeedback(id)
+      else if (action === 'delete') this.setConfirming(id)
+      else if (action === 'confirm-delete') this.deleteTryon(id)
+      else if (action === 'cancel-delete') this.setConfirming(null)
+    }
+
+    setConfirming(id) {
+      this.confirmingId = id
+      this.renderList()
+    }
+
+    requestFeedback(id) {
+      document.dispatchEvent(
+        new CustomEvent('am:open-feedback', {
+          detail: { targetType: 'tryon', targetId: id, context: {} },
+        })
+      )
+    }
+
+    async deleteTryon(id) {
+      try {
+        await apiFetch(`${TRYONS_URL}/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: authHeaders(),
+        })
+        this.tryons = this.tryons.filter((tryon) => tryon.id !== id)
+        this.confirmingId = null
+        if (this.detailId === id) this.closeOverlay()
+        this.clearStatus()
+        this.renderList()
+      } catch (error) {
+        this.confirmingId = null
+        this.showStatus(`Delete failed: ${this.errorMessage(error)}`)
+        this.renderList()
+      }
+    }
+
+    /* ---------- detail overlay ---------- */
+
+    async openDetail(id) {
+      if (!this.overlay || !this.overlayBody) return
+
+      this.detailId = id
+      this.overlayBody.innerHTML =
+        '<div class="am-empty-state">Loading try-on detail…</div>'
+      this.openOverlay()
+
+      try {
+        const data = await apiFetch(`${TRYONS_URL}/${encodeURIComponent(id)}`, {
+          headers: authHeaders(),
+        })
+        if (this.detailId !== id) return
+        this.renderDetail(id, data?.tryon || data || {})
+      } catch (error) {
+        if (this.detailId !== id) return
+        this.overlayBody.innerHTML = `<div class="am-empty-state">Couldn’t load detail: ${escapeHtml(this.errorMessage(error))}</div>`
+      }
+    }
+
+    renderDetail(id, detail) {
+      if (!this.overlayBody) return
+
+      const tryon = this.normalizeTryon({ ...detail, tryon_id: id })
+      const imageUrl = this.bestImageUrl(tryon)
+      const status = this.formatStatus(tryon.status)
+
+      const mediaBlock = imageUrl
+        ? `<div class="am-tryh-detail__media">
+             <img src="${escapeHtml(imageUrl)}" alt="Try-on ${escapeHtml(id)}" />
+           </div>`
+        : `<div class="am-tryh-detail__media am-tryh-detail__media--empty">
+             <span>No preview image for this try-on</span>
+           </div>`
+
+      this.overlayBody.innerHTML = `
+        <div class="am-tryh-detail">
+          ${mediaBlock}
+          <div class="am-tryh-detail__info">
+            <p class="am-tryh-detail__row"><strong>Status:</strong> ${escapeHtml(status)}</p>
+            <p class="am-tryh-detail__row"><strong>Figure ID:</strong> ${escapeHtml(tryon.figureId || '—')}</p>
+            <p class="am-tryh-detail__row"><strong>Garments:</strong> ${escapeHtml(this.garmentLabel(tryon.clothIds.length))}</p>
+            <p class="am-tryh-detail__row"><strong>Try-On ID:</strong> ${escapeHtml(id)}</p>
+            <button class="am-button am-tryh-detail__feedback" type="button" data-action="feedback">Leave Feedback</button>
+          </div>
+        </div>`
+    }
+
+    onOverlayBodyClick(event) {
+      const trigger = event.target.closest('[data-action="feedback"]')
+      if (!trigger || !this.detailId) return
+      this.requestFeedback(this.detailId)
+    }
+
+    openOverlay() {
+      if (!this.overlay) return
+
+      this.lastFocused = document.activeElement
+      if (this.hideTimer) {
+        window.clearTimeout(this.hideTimer)
+        this.hideTimer = 0
+      }
+
+      this.overlay.hidden = false
+      this.overlay.setAttribute('aria-hidden', 'false')
+      window.requestAnimationFrame(() => {
+        this.overlay.dataset.open = 'true'
+      })
+
+      document.documentElement.classList.add('am-overlay-open')
+      window.lenis?.stop?.()
+
+      this.overlay.querySelector('#am-tryh-overlay-close')?.focus()
+    }
+
+    closeOverlay() {
+      if (!this.overlay) return
+
+      this.detailId = null
+      this.overlay.dataset.open = 'false'
+      this.overlay.setAttribute('aria-hidden', 'true')
+
+      if (this.hideTimer) window.clearTimeout(this.hideTimer)
+      this.hideTimer = window.setTimeout(() => {
+        this.overlay.hidden = true
+        this.hideTimer = 0
+      }, OVERLAY_TRANSITION_MS)
+
+      document.documentElement.classList.remove('am-overlay-open')
+      window.lenis?.start?.()
+
+      if (this.lastFocused instanceof HTMLElement) {
+        this.lastFocused.focus()
+      }
+      this.lastFocused = null
+    }
+
+    /* ---------- status helpers ---------- */
+
+    showStatus(message) {
+      if (!this.statusEl) return
+      this.statusEl.textContent = message
+      this.statusEl.hidden = false
+    }
+
+    clearStatus() {
+      if (!this.statusEl) return
+      this.statusEl.textContent = ''
+      this.statusEl.hidden = true
+    }
+
+    errorMessage(error) {
+      return error instanceof Error ? error.message : 'unknown error'
+    }
+  }
+
+  new TryonHistory()
+</script>
+
+<style is:global lang="scss">
+  /* Namespaced `am-tryh-*` rules. `is:global` is intentional: cards/overlay body are
+     rendered via innerHTML and would not match Astro-scoped selectors. */
+  .am-tryh-section {
+    position: relative;
+    z-index: 2;
+
+    padding: 8rem 0 10rem;
+
+    overflow: hidden;
+    isolation: isolate;
+
+    background:
+      radial-gradient(circle at top right, rgba(244, 12, 63, 0.08), transparent 32%),
+      linear-gradient(180deg, rgba(22, 0, 0, 0.04), transparent 22%);
+
+    @include mq(tablet-sm) {
+      padding: 6.5rem 0 8rem;
+    }
+
+    @include mq(phone) {
+      padding: 5.5rem 0 6.5rem;
+    }
+
+    &:before {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+
+      background: radial-gradient(
+        circle at 50% 44%,
+        rgba(255, 255, 255, 0.24),
+        transparent 54%
+      );
+
+      content: '';
+      pointer-events: none;
+    }
+  }
+
+  .am-tryh-shell {
+    position: relative;
+    z-index: 1;
+
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+
+    @include mq(phone) {
+      padding: 0 0.9rem;
+    }
+  }
+
+  .am-tryh-grid {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .am-tryh-grid__svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .am-tryh-grid__path {
+    fill: none;
+    stroke: color(secondary);
+    stroke-width: 1px;
+    opacity: 1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    shape-rendering: geometricPrecision;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .am-tryh-panel {
+    position: relative;
+    z-index: 1;
+
+    border: 1px solid color(secondary);
+    background:
+      linear-gradient(180deg, rgba(244, 12, 63, 0.06), transparent 24%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08)),
+      rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 1.5rem 3rem rgba(22, 0, 0, 0.08);
+  }
+
+  .am-tryh-panel__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+
+    padding: 1.25rem;
+    border-bottom: 1px solid color(secondary);
+
+    @include mq(phone) {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 0.9rem;
+    }
+  }
+
+  .am-tryh-eyebrow {
+    margin: 0 0 0.5rem;
+    font: 700 0.75rem / 1 font-family(fraktion);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .am-tryh-title {
+    margin: 0;
+    font: 700 clamp(2rem, 4vw, 4.2rem) / 0.92 font-family(bigger);
+    text-transform: uppercase;
+  }
+
+  .am-tryh-status {
+    margin: 0;
+    padding: 1rem 1.25rem 0;
+
+    color: var(--am-accent, #f40c3f);
+    font: 400 0.95rem / 1.45 font-family(editorial);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .am-tryh-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: 0.9rem;
+    align-content: start;
+
+    padding: 1.25rem;
+
+    @include mq(phone) {
+      padding: 0.9rem;
+    }
+  }
+
+  /* ---- card ---- */
+  .am-tryh-card {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+
+    padding: 1rem;
+
+    border: 1px solid color(secondary);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.54)),
+      rgba(244, 12, 63, 0.04);
+    color: color(secondary);
+
+    transition:
+      transform 0.2s ease,
+      border-color 0.2s ease,
+      background 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      border-color: var(--am-accent, #f40c3f);
+    }
+  }
+
+  .am-tryh-card__thumb {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    margin-bottom: 0.5rem;
+
+    border: 1px solid rgba(22, 0, 0, 0.16);
+    background:
+      radial-gradient(circle at top, rgba(244, 12, 63, 0.12), transparent 55%),
+      rgba(22, 0, 0, 0.08);
+    overflow: hidden;
+    cursor: pointer;
+
+    &.is-processing {
+      animation: am-tryh-pulse 1.4s ease-in-out infinite;
+      cursor: default;
+    }
+  }
+
+  .am-tryh-card__img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .am-tryh-card__fallback {
+    padding: 1rem;
+    text-align: center;
+    font: 400 0.9rem / 1.35 font-family(editorial);
+    color: color(secondary);
+  }
+
+  .am-tryh-card__eyebrow {
+    font: 700 0.72rem / 1 font-family(fraktion);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .am-tryh-card__title {
+    margin: 0.1rem 0 0.15rem;
+    font: 700 1.2rem / 0.95 font-family(bigger);
+    text-transform: uppercase;
+    word-break: break-all;
+  }
+
+  .am-tryh-card__meta {
+    font: 400 0.92rem / 1.3 font-family(editorial);
+  }
+
+  .am-tryh-card__status[data-state='failed'] {
+    color: var(--am-accent, #f40c3f);
+  }
+
+  .am-tryh-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    width: 100%;
+    margin-top: 0.6rem;
+  }
+
+  .am-tryh-card__action {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.66rem;
+  }
+
+  /* ---- error ---- */
+  .am-tryh-error {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ---- detail overlay ---- */
+  .am-tryh-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 0.28s ease,
+      visibility 0.28s ease;
+
+    &[hidden] {
+      display: none;
+    }
+
+    &[data-open='true'] {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+  }
+
+  .am-tryh-overlay__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(22, 0, 0, 0.72);
+    backdrop-filter: blur(8px);
+  }
+
+  .am-tryh-overlay__dialog {
+    position: relative;
+    z-index: 1;
+
+    width: min(56rem, 100%);
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    scrollbar-width: none;
+
+    border: 1px solid color(secondary);
+    background:
+      linear-gradient(180deg, rgba(244, 12, 63, 0.09), transparent 25%),
+      color(primary);
+    box-shadow: 0 2rem 4rem rgba(0, 0, 0, 0.32);
+
+    opacity: 0;
+    transform: translate3d(0, 1rem, 0) scale(0.985);
+    transition:
+      opacity 0.28s ease,
+      transform 0.28s ease;
+    will-change: opacity, transform;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    @include mq(phone) {
+      width: 100%;
+      max-height: calc(100dvh - 1rem);
+    }
+  }
+
+  .am-tryh-overlay[data-open='true'] .am-tryh-overlay__dialog {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  .am-tryh-overlay__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.25rem 0;
+  }
+
+  .am-tryh-overlay__eyebrow {
+    margin: 0;
+    font: 700 0.75rem / 1 font-family(fraktion);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .am-tryh-overlay__body {
+    padding: 1.25rem;
+  }
+
+  /* ---- detail body ---- */
+  .am-tryh-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+
+    @include mq(tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .am-tryh-detail__media {
+    border: 1px solid rgba(22, 0, 0, 0.16);
+    background: #160000;
+    overflow: hidden;
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+  }
+
+  .am-tryh-detail__media--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 16rem;
+    padding: 1rem;
+
+    background: rgba(22, 0, 0, 0.06);
+    text-align: center;
+    font: 400 0.95rem / 1.4 font-family(editorial);
+  }
+
+  .am-tryh-detail__info {
+    font: 400 1rem / 1.5 font-family(editorial);
+  }
+
+  .am-tryh-detail__row {
+    margin: 0 0 0.5rem;
+  }
+
+  .am-tryh-detail__feedback {
+    margin-top: 0.75rem;
+  }
+
+  @keyframes am-tryh-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+</style>

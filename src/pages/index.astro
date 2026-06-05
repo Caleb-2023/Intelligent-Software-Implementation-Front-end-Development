@@ -7,6 +7,10 @@ import SAbout from '../components/SAbout.astro'
 import SWork from '../components/SWork.astro'
 import SCTA from '../components/SCTA.astro'
 import ASeparator from '../components/ASeparator.astro'
+import SFigureLibrary from '../components/SFigureLibrary.astro'
+import STryonHistory from '../components/STryonHistory.astro'
+import SStyleRecords from '../components/SStyleRecords.astro'
+import SFeedback from '../components/SFeedback.astro'
 
 import '../styles/global.scss'
 ---
@@ -112,7 +116,19 @@ import '../styles/global.scss'
 
       <ASeparator style="secondary" />
 
+      <!-- Figure Library (new page — figure/avatar records) -->
+      <SFigureLibrary />
+
+      <!-- Try-On History (new page — try-on records) -->
+      <STryonHistory />
+
+      <!-- Recommendation Records (new page — server-side AI styling records) -->
+      <SStyleRecords />
+
       <SCTA />
+
+      <!-- Feedback widget (new page — event-driven, self-mounts to <body>) -->
+      <SFeedback />
 
       <SiteFoot />
     </div><!-- .site-wrapper -->
