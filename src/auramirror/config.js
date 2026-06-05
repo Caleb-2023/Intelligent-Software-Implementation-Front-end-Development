@@ -15,6 +15,7 @@ export const STORAGE_KEYS = {
 }
 export const API_ENDPOINTS = {
   cloths: `${API_BASE_URL}/cloths`,
+  clothImageUpload: `${API_BASE_URL}/uploads/cloth-image`,
   tryons: `${API_BASE_URL}/tryons`,
   recommendations: `${API_BASE_URL}/recommendations`,
   authLogin: `${API_BASE_URL}/auth/login`,

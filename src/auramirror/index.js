@@ -16,6 +16,12 @@ import {
 gsap.registerPlugin(ScrollTrigger)
 
 const OVERLAY_TRANSITION_MS = 280
+const MAX_CLOTH_IMAGE_SIZE = 10 * 1024 * 1024
+const VALID_CLOTH_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+])
 
 function markReady() {
   document.documentElement.dataset.auramirror = 'ready'
@@ -188,6 +194,7 @@ function normalizeCloth(item) {
     _id: String(item?._id || item?.id || ''),
     category: String(item?.category || 'misc'),
     name: String(item?.name || 'Unnamed garment'),
+    imageUrl: String(item?.image_url || item?.imageUrl || ''),
     attributes: {
       color: String(item?.attributes?.color || 'unknown'),
       material: String(item?.attributes?.material || 'unspecified'),
@@ -238,6 +245,24 @@ function updateWardrobeStatus(text) {
   }
 
   updateAccountDashboard()
+}
+
+function getApiOrigin() {
+  try {
+    return new URL(API_BASE_URL, window.location.origin).origin
+  } catch {
+    return window.location.origin
+  }
+}
+
+function resolveAssetUrl(url) {
+  if (!url) return ''
+
+  try {
+    return new URL(url, getApiOrigin()).href
+  } catch {
+    return url
+  }
 }
 
 function updateSelectionStatus() {
@@ -2043,6 +2068,12 @@ function renderWardrobeGrid() {
       const isSelected = state.selectedClothIds.includes(item._id)
       const seasons = item.attributes.season.join(' · ') || 'all seasons'
       const occasions = item.attributes.occasion.join(' · ') || 'multi use'
+      const imageUrl = resolveAssetUrl(item.imageUrl)
+      const imageMarkup = imageUrl
+        ? `<span class="am-wardrobe-card__media"><img src="${escapeHtml(
+            imageUrl
+          )}" alt="${escapeHtml(item.name)}" loading="lazy" /></span>`
+        : ''
 
       return `
         <button
@@ -2051,6 +2082,7 @@ function renderWardrobeGrid() {
           data-cloth-id="${escapeHtml(item._id)}"
           aria-pressed="${isSelected ? 'true' : 'false'}"
         >
+          ${imageMarkup}
           <span class="am-wardrobe-card__eyebrow">${escapeHtml(item.category)}</span>
           <strong class="am-wardrobe-card__title">${escapeHtml(item.name)}</strong>
           <span class="am-wardrobe-card__meta">Color: ${escapeHtml(
@@ -2454,6 +2486,70 @@ async function handleTryOnRequest(closeOverlay) {
   }
 }
 
+function getClothItemsFromPayload(payload) {
+  if (Array.isArray(payload?.data?.cloths)) {
+    return payload.data.cloths
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data
+  }
+
+  if (Array.isArray(payload?.cloths)) {
+    return payload.cloths
+  }
+
+  return []
+}
+
+function validateClothImageFile(file) {
+  if (!file) {
+    throw new Error('Choose an image file first.')
+  }
+
+  const extension = String(file.name || '').split('.').pop()?.toLowerCase()
+  const validExtension = ['jpg', 'jpeg', 'png', 'webp'].includes(extension)
+
+  if (!VALID_CLOTH_IMAGE_TYPES.has(file.type) && !validExtension) {
+    throw new Error('Only JPG, PNG, and WebP garment images are supported.')
+  }
+
+  if (file.size > MAX_CLOTH_IMAGE_SIZE) {
+    throw new Error('Garment image must be 10MB or smaller.')
+  }
+}
+
+async function uploadClothImage(file) {
+  const token = getApiToken()
+
+  if (!token) {
+    throw new Error(`JWT missing. Set localStorage["${STORAGE_KEYS.apiToken}"] before uploading.`)
+  }
+
+  validateClothImageFile(file)
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(API_ENDPOINTS.clothImageUpload, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  })
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok || payload?.success === false) {
+    throw new Error(
+      String(payload?.message || payload?.error || `Upload failed (${response.status})`)
+    )
+  }
+
+  return payload?.data || payload || {}
+}
+
 async function loadWardrobeCatalog({ force = false } = {}) {
   const token = getApiToken()
 
@@ -2494,9 +2590,9 @@ async function loadWardrobeCatalog({ force = false } = {}) {
     }
 
     const payload = await response.json().catch(() => null)
-    const cloths = Array.isArray(payload?.data)
-      ? payload.data.map(normalizeCloth).filter((item) => item._id)
-      : []
+    const cloths = getClothItemsFromPayload(payload)
+      .map(normalizeCloth)
+      .filter((item) => item._id)
 
     if (!cloths.length) {
       const fallbackItems = FALLBACK_CLOTHS.map(normalizeCloth)
@@ -2616,6 +2712,8 @@ function bindModuleEntryPlaceholder() {
   const closeButton = document.getElementById('am-styling-close')
   const refreshButton = document.getElementById('am-refresh-wardrobe')
   const applyButton = document.getElementById('am-generate-tryon')
+  const uploadButton = document.getElementById('am-upload-cloth-trigger')
+  const uploadInput = document.getElementById('am-upload-cloth-input')
   const aiButton = document.getElementById('am-open-ai-stylist')
   const grid = document.getElementById('am-wardrobe-grid')
 
@@ -2696,6 +2794,33 @@ function bindModuleEntryPlaceholder() {
   })
   applyButton?.addEventListener('click', async () => {
     await handleTryOnRequest(closeOverlay)
+  })
+  uploadButton?.addEventListener('click', () => {
+    uploadInput?.click()
+  })
+  uploadInput?.addEventListener('change', async (event) => {
+    const input = event.currentTarget
+    const [file] = input.files || []
+
+    if (!file) return
+
+    uploadButton.disabled = true
+    updateWardrobeStatus(`Uploading ${file.name}...`)
+
+    try {
+      const uploaded = await uploadClothImage(file)
+      updateWardrobeStatus(
+        `Uploaded ${uploaded.filename || file.name}. Refreshing wardrobe garments...`
+      )
+      await loadWardrobeCatalog({ force: true })
+    } catch (error) {
+      updateWardrobeStatus(
+        `Cloth upload failed: ${error instanceof Error ? error.message : 'unknown error'}`
+      )
+    } finally {
+      input.value = ''
+      uploadButton.disabled = false
+    }
   })
 
   grid?.addEventListener('click', (event) => {
