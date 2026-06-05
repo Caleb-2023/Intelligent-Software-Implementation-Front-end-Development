@@ -2682,6 +2682,37 @@ async function uploadClothImage(file) {
   return payload?.data || payload || {}
 }
 
+async function smartUploadCloth(file) {
+  const token = getApiToken()
+
+  if (!token) {
+    throw new Error(`JWT missing. Set localStorage["${STORAGE_KEYS.apiToken}"] before uploading.`)
+  }
+
+  validateClothImageFile(file)
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(API_ENDPOINTS.clothSmartUpload, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  })
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok || payload?.success === false) {
+    throw new Error(
+      String(payload?.message || payload?.error || `Smart upload failed (${response.status})`)
+    )
+  }
+
+  return payload?.data || payload || {}
+}
+
 async function loadWardrobeCatalog({ force = false } = {}) {
   const token = getApiToken()
 
@@ -2940,11 +2971,17 @@ function bindModuleEntryPlaceholder() {
     updateWardrobeStatus(`Uploading ${file.name}...`)
 
     try {
-      const uploaded = await uploadClothImage(file)
+      const uploaded = await smartUploadCloth(file)
+      const clothData = uploaded.cloth || uploaded
       updateWardrobeStatus(
-        `Uploaded ${uploaded.filename || file.name}. Refreshing wardrobe garments...`
+        `Uploaded ${file.name}. AI is recognizing garment attributes...`
       )
+      // Wait a moment then refresh to show the new item (even if AI is still processing)
+      await new Promise(resolve => setTimeout(resolve, 1000))
       await loadWardrobeCatalog({ force: true })
+      updateWardrobeStatus(
+        `✓ ${clothData.name || file.name} added! AI recognition in progress - refresh in a few seconds to see full details.`
+      )
     } catch (error) {
       updateWardrobeStatus(
         `Cloth upload failed: ${error instanceof Error ? error.message : 'unknown error'}`
