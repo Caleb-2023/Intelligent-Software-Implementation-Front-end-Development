@@ -1,0 +1,103 @@
+Test Run Evidence — 2026-05-28
+================================
+
+Command: npx vitest run --reporter verbose
+Environment: happy-dom
+Framework: Vitest 4.1.7
+
+ RUN  v4.1.7 E:/coding space/Intelligent-Software-Implementation-Front-end-Development
+
+ ✓ src/utils/Emitter.test.js > Emitter > should register and call an event handler 3ms
+ ✓ src/utils/Emitter.test.js > Emitter > should pass arguments to the handler 2ms
+ ✓ src/utils/Emitter.test.js > Emitter > should support multiple handlers for the same event 1ms
+ ✓ src/utils/Emitter.test.js > Emitter > should not register duplicate handlers (same callback + same context) 0ms
+ ✓ src/utils/Emitter.test.js > Emitter > should call a once handler only one time 0ms
+ ✓ src/utils/Emitter.test.js > Emitter > should call handler with correct context (this binding) 0ms
+ ✓ src/utils/Emitter.test.js > Emitter > should remove a handler via off() 0ms
+ ✓ src/utils/Emitter.test.js > Emitter > should not throw when emitting an event with no handlers 1ms
+ ✓ src/utils/Emitter.test.js > Emitter > should not throw when off() with unregistered handler 1ms
+ ✓ src/utils/Emitter.test.js > Emitter > should distinguish handlers by context even with same callback 0ms
+ ✓ src/auramirror/config.test.js > config > API_BASE_URL > should be a valid relative path 2ms
+ ✓ src/auramirror/config.test.js > config > API_ENDPOINTS > should define all required endpoints 1ms
+ ✓ src/auramirror/config.test.js > config > MAX_STYLING_SELECTIONS > should be 4 0ms
+ ✓ src/auramirror/config.test.js > config > WEATHER_API_BASE_URL > should point to Open-Meteo 0ms
+ ✓ src/auramirror/config.test.js > config > GEOCODE_API_BASE_URL > should point to Open-Meteo reverse geocode 0ms
+ ✓ src/auramirror/config.test.js > config > STORAGE_KEYS > should use namespaced keys 0ms
+ ✓ src/auramirror/config.test.js > config > STORAGE_KEYS > should define all required keys 0ms
+ ✓ src/auramirror/config.test.js > config > DEFAULT_WEATHER_CONTEXT > should have all required fields 0ms
+ ✓ src/auramirror/config.test.js > config > DEFAULT_WEATHER_CONTEXT > should have city set to Fallback Studio 0ms
+ ✓ src/auramirror/config.test.js > config > DEFAULT_WEATHER_CONTEXT > should have controlled weather label 0ms
+ ✓ src/auramirror/config.test.js > config > DEFAULT_WEATHER_CONTEXT > should have fallback source 0ms
+ ✓ src/auramirror/config.test.js > config > DEFAULT_WEATHER_CONTEXT > should have numeric temperature and humidity 0ms
+ ✓ src/auramirror/config.test.js > config > FALLBACK_CLOTHS > should be an array 0ms
+ ✓ src/auramirror/config.test.js > config > FALLBACK_CLOTHS > should contain at least one cloth per category 1ms
+ ✓ src/auramirror/config.test.js > config > FALLBACK_CLOTHS > each cloth should have required fields 2ms
+ ✓ src/auramirror/config.test.js > config > FALLBACK_CLOTHS > each cloth _id should start with demo- 0ms
+ ✓ src/auramirror/config.test.js > config > GITHUB_PROJECT_URL > should be a GitHub URL 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > $ > should return the first matching element 6ms
+ ✓ src/auramirror/dom.test.js > dom utilities > $ > should return null when no match 1ms
+ ✓ src/auramirror/dom.test.js > dom utilities > $ > should search within a given scope 2ms
+ ✓ src/auramirror/dom.test.js > dom utilities > $ > should default scope to document 1ms
+ ✓ src/auramirror/dom.test.js > dom utilities > $$ > should return all matching elements as an array 3ms
+ ✓ src/auramirror/dom.test.js > dom utilities > $$ > should return an empty array when no match 1ms
+ ✓ src/auramirror/dom.test.js > dom utilities > $$ > should search within a given scope 2ms
+ ✓ src/auramirror/dom.test.js > dom utilities > ensureMeta > should create a meta tag if one does not exist 2ms
+ ✓ src/auramirror/dom.test.js > dom utilities > ensureMeta > should update an existing meta tag 1ms
+ ✓ src/auramirror/dom.test.js > dom utilities > ensureMeta > should return null for empty name 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > ensureMeta > should handle boolean false name 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > escapeHtml > should escape < and > 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > escapeHtml > should escape double quotes 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > escapeHtml > should escape single quotes 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > escapeHtml > should escape ampersands 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > escapeHtml > should return empty string for undefined 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > escapeHtml > should return "null" string for null (String(null)) 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > escapeHtml > should convert non-string values to string 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > escapeHtml > should handle safe strings unchanged 0ms
+ ✓ src/auramirror/dom.test.js > dom utilities > escapeHtml > should escape a complex HTML string 0ms
+ ✓ src/auramirror/state.test.js > state > should have default uploadedPhoto as empty string 36ms
+ ✓ src/utils/Noise.test.js > Noise > should create an instance with default seed 2ms
+ ✓ src/utils/Noise.test.js > Noise > should create an instance with a numeric seed 0ms
+ ✓ src/utils/Noise.test.js > Noise > should create an instance with a fractional seed (0 < seed < 1) 0ms
+ ✓ src/utils/Noise.test.js > Noise > should return deterministic values for the same seed 1ms
+ ✓ src/utils/Noise.test.js > Noise > should return different values for different seeds 0ms
+ ✓ src/utils/Noise.test.js > Noise > should return values between roughly -1 and 1 78ms
+ ✓ src/utils/Noise.test.js > Noise > should return the same value for the same coordinates 0ms
+ ✓ src/utils/Noise.test.js > Noise > should allow re-seeding 1ms
+ ✓ src/utils/Noise.test.js > Noise > perlin2 should handle negative coordinates 1ms
+ ✓ src/utils/Noise.test.js > Noise > perlin2 should handle large coordinates 0ms
+ ✓ src/utils/Noise.test.js > Noise > fade function should map 0->0 and 1->1 0ms
+ ✓ src/utils/Noise.test.js > Noise > lerp function should interpolate correctly 0ms
+ ✓ src/utils/Ticker.test.js > Ticker > should export a singleton instance 144ms
+ ✓ src/utils/Ticker.test.js > Ticker > should queue a callback via nextTick and execute it on tick 4ms
+ ✓ src/utils/Ticker.test.js > Ticker > should call nextTick callback with correct context 2ms
+ ✓ src/utils/Ticker.test.js > Ticker > should emit "tick" event on each tick 3ms
+ ✓ src/utils/Ticker.test.js > Ticker > should remove callbacks after execution (one-shot nextTick) 2ms
+ ✓ src/utils/Ticker.test.js > Ticker > should handle multiple nextTick callbacks 1ms
+ ✓ src/utils/Ticker.test.js > Ticker > should track delta value 1ms
+ ✓ src/utils/Ticker.test.js > Ticker > should queue a callback from within a tick callback 2ms
+ ✓ src/utils/Ticker.test.js > Ticker > init should register with gsap.ticker.add 3ms
+ ✓ src/auramirror/state.test.js > state > should have default uploadedPhotoFile as null 69ms
+ ✓ src/auramirror/state.test.js > state > should have empty avatarDataUrl 30ms
+ ✓ src/auramirror/state.test.js > state > should have default figureStatus as idle 20ms
+ ✓ src/auramirror/state.test.js > state > should have empty clothCatalog array 21ms
+ ✓ src/auramirror/state.test.js > state > should have empty clothLookup object 16ms
+ ✓ src/auramirror/state.test.js > state > should have empty selectedClothIds array 23ms
+ ✓ src/auramirror/state.test.js > state > should have default wardrobeMode as fallback 20ms
+ ✓ src/auramirror/state.test.js > state > should have empty wardrobeStatus 17ms
+ ✓ src/auramirror/state.test.js > state > should have null lastRecommendation 20ms
+ ✓ src/auramirror/state.test.js > state > should have empty historyEntries array 17ms
+ ✓ src/auramirror/state.test.js > state > should have default authMode as login 16ms
+ ✓ src/auramirror/state.test.js > state > should have empty authToken 15ms
+ ✓ src/auramirror/state.test.js > state > should have null authUser 15ms
+ ✓ src/auramirror/state.test.js > state > should have dashboardOpen as false 14ms
+ ✓ src/auramirror/state.test.js > state > should have default selections 20ms
+ ✓ src/auramirror/state.test.js > state > should have weatherContext with fallback defaults 22ms
+ ✓ src/auramirror/state.test.js > state > should have mutable state properties 18ms
+ ✓ src/auramirror/state.test.js > state > should have historyScrollTween as null 19ms
+ ✓ src/auramirror/state.test.js > state > should have historyScrollTrigger as null 21ms
+ ✓ src/auramirror/state.test.js > state > should have empty historyDistortions array 22ms
+
+ Test Files  6 passed (6)
+      Tests  89 passed (89)
+   Start at  18:43:26
+   Duration  1.26s (transform 428ms, setup 0ms, import 468ms, tests 771ms, environment 2.94s)
