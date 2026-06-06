@@ -1,0 +1,933 @@
+---
+import {
+  GITHUB_PROJECT_URL,
+  QR_DEFAULT_SRC,
+  QR_LIGHT_SRC,
+} from '../auramirror/config'
+
+const menu = [
+  { id: 'about', text: 'Avatar' },
+  { id: 'work', text: 'Try-On' },
+  { id: 'contact', text: 'History' },
+]
+
+const authMenu = [
+  { id: 'auth', text: 'Login|Register', action: 'auth' },
+  { id: 'signout', text: 'Sign Out', action: 'signout' },
+]
+---
+
+<header class="site-head" data-intersect>
+  <div class="site-head__container">
+    <div class="sb-logo">
+      <a href="/">
+        <svg
+          class="js-logo"
+          width="280"
+          height="280"
+          viewBox="0 0 280 280"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M240.245 0v263.2h-19.894V0h-39.756v263.2h-19.861V0h-39.755v280H280V0h-39.755Z"
+            fill="#160000"
+          >
+          </path>
+          <path d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z" fill="#160000">
+          </path>
+        </svg>
+
+      </a>
+    </div><!-- .sb-logo -->
+
+    <div class="sb-console" role="presentation">
+      <div class="sb-console__inner js-console">
+      </div><!-- .sb-console__inner -->
+    </div><!-- .sb-console -->
+
+    <nav class="sb-menu">
+      <ul class="sb__list">
+        {
+          menu.map((item) => (
+            <li class="sb__item js-menu-item">
+              <a href={'#' + item.id} class="js-menu-link">
+                <span class="sb__text">{item.text}</span>
+              </a>
+            </li>
+          ))
+        }
+
+        {
+          authMenu.map((item) => (
+            <li
+              class="sb__item js-menu-item am-auth-nav-item"
+              data-auth-action={item.action}
+              hidden={item.action === 'signout'}
+            >
+              <button
+                type="button"
+                class="js-menu-link am-auth-nav-button"
+                aria-label={item.text}
+                aria-haspopup={item.action === 'auth' ? 'dialog' : undefined}
+                aria-controls={item.action === 'auth' ? 'am-auth-overlay' : undefined}
+                aria-expanded="false"
+              >
+                <span class="sb__text">{item.text}</span>
+              </button>
+            </li>
+          ))
+        }
+      </ul>
+    </nav><!-- .sb-menu -->
+
+    <button class="sb-contrast js-contrast" type="button">
+      <span
+        class="sb__icon"
+        style="--path: path('M10.0996 20C8.71628 20 7.41628 19.7373 6.19961 19.212C4.98294 18.6867 3.92461 17.9743 3.02461 17.075C2.12461 16.1757 1.41228 15.1173 0.887611 13.9C0.362944 12.6827 0.100277 11.3827 0.0996106 10C0.098944 8.61733 0.361611 7.31733 0.887611 6.1C1.41361 4.88267 2.12594 3.82433 3.02461 2.925C3.92328 2.02567 4.98161 1.31333 6.19961 0.788C7.41761 0.262667 8.71761 0 10.0996 0C11.4816 0 12.7816 0.262667 13.9996 0.788C15.2176 1.31333 16.2759 2.02567 17.1746 2.925C18.0733 3.82433 18.7859 4.88267 19.3126 6.1C19.8393 7.31733 20.1016 8.61733 20.0996 10C20.0976 11.3827 19.8349 12.6827 19.3116 13.9C18.7883 15.1173 18.0759 16.1757 17.1746 17.075C16.2733 17.9743 15.2149 18.687 13.9996 19.213C12.7843 19.739 11.4843 20.0013 10.0996 20ZM11.0996 17.925C13.0829 17.675 14.7456 16.804 16.0876 15.312C17.4296 13.82 18.1003 12.0493 18.0996 10C18.0989 7.95067 17.4279 6.18 16.0866 4.688C14.7453 3.196 13.0829 2.325 11.0996 2.075V17.925Z');"
+      >
+      </span>
+
+      <span class="u-sr-only">Change contrast</span>
+    </button><!-- .sb-contrast -->
+
+    <aside class="sb-availability">
+      <p>
+        <span class="sb__line">
+          <span class="sb__text">AuraMirror</span>
+        </span>
+
+        <span class="sb__line">
+          <span class="sb__text">Explore AuraMirror on GitHub -></span>
+          <a href={GITHUB_PROJECT_URL} target="_blank" rel="noopener" class="sb__link"
+            >View Project</a
+          >
+        </span>
+      </p>
+    </aside><!-- .sb-availability -->
+
+    <a
+      href={GITHUB_PROJECT_URL}
+      target="_blank"
+      rel="noopener"
+      class="sb-qr-code js-qr-code"
+      title="Open AuraMirror GitHub project"
+    >
+      <img
+        class="js-qr-image"
+        src={QR_DEFAULT_SRC}
+        alt="AuraMirror GitHub QR Code"
+        width="84"
+        height="84"
+      />
+    </a><!-- .sb-qr-code -->
+  </div><!-- .site-head__container -->
+
+  <section id="am-auth-overlay" class="am-auth-overlay" hidden aria-hidden="true">
+    <div class="am-auth-overlay__backdrop" data-am-close-auth></div>
+
+    <div
+      class="am-auth-overlay__dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="am-auth-title"
+    >
+      <header class="am-auth-overlay__header">
+        <div>
+          <p class="am-auth-overlay__eyebrow">Module 00</p>
+          <h2 id="am-auth-title" class="am-auth-overlay__title">Aura<br />Mirror</h2>
+          <p class="am-auth-overlay__sub">AI Smart Wardrobe</p>
+        </div>
+
+        <button
+          id="am-auth-close"
+          class="am-styling-close"
+          type="button"
+          aria-label="Close authentication dialog"
+        >
+          Close
+        </button>
+      </header>
+
+      <div class="am-auth-overlay__tabs" role="tablist" aria-label="Authentication tabs">
+        <button
+          id="am-auth-tab-login"
+          class="am-auth-tab is-active"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          aria-controls="am-auth-panel-login"
+          data-auth-tab="login"
+        >
+          Sign In
+        </button>
+        <button
+          id="am-auth-tab-register"
+          class="am-auth-tab"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="am-auth-panel-register"
+          data-auth-tab="register"
+        >
+          Register
+        </button>
+      </div>
+
+      <div class="am-auth-overlay__body">
+        <p id="am-auth-status" class="am-status am-auth-status">
+          Sign in to connect the live wardrobe, remote try-on, and recommendation APIs.
+        </p>
+
+        <section
+          id="am-auth-panel-login"
+          class="am-auth-panel"
+          role="tabpanel"
+          aria-labelledby="am-auth-tab-login"
+        >
+          <form id="am-login-form" class="am-auth-form">
+            <label class="am-label">
+              Email
+              <input
+                id="am-login-email"
+                class="am-input"
+                type="email"
+                name="email"
+                autocomplete="email"
+                placeholder="you@example.com"
+                required
+              />
+            </label>
+
+            <label class="am-label">
+              Password
+              <input
+                id="am-login-password"
+                class="am-input"
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                placeholder="Enter your password"
+                required
+              />
+            </label>
+
+            <button class="am-button am-auth-overlay__submit" type="submit">Sign In</button>
+          </form>
+        </section>
+
+        <section
+          id="am-auth-panel-register"
+          class="am-auth-panel"
+          role="tabpanel"
+          aria-labelledby="am-auth-tab-register"
+          hidden
+        >
+          <form id="am-register-form" class="am-auth-form">
+            <label class="am-label">
+              Name
+              <input
+                id="am-register-name"
+                class="am-input"
+                type="text"
+                name="name"
+                autocomplete="name"
+                placeholder="Your name"
+                required
+              />
+            </label>
+
+            <label class="am-label">
+              Email
+              <input
+                id="am-register-email"
+                class="am-input"
+                type="email"
+                name="email"
+                autocomplete="email"
+                placeholder="you@example.com"
+                required
+              />
+            </label>
+
+            <label class="am-label">
+              Password
+              <input
+                id="am-register-password"
+                class="am-input"
+                type="password"
+                name="password"
+                autocomplete="new-password"
+                placeholder="Minimum 6 characters"
+                required
+              />
+            </label>
+
+            <button class="am-button am-auth-overlay__submit" type="submit">Create Account</button>
+          </form>
+        </section>
+      </div>
+
+      <footer class="am-auth-overlay__footer">
+        <span class="am-auth-overlay__footer-text">Your wardrobe / your data / your style.</span>
+      </footer>
+    </div>
+  </section>
+</header>
+
+<script>
+  import Emitter from '../utils/Emitter'
+  import Ticker from '../utils/Ticker'
+
+  import { gsap } from 'gsap'
+  import { QR_DEFAULT_SRC, QR_LIGHT_SRC } from '../auramirror/config'
+
+  class Section {
+    el: HTMLElement
+    contrastButton: HTMLElement
+    console: HTMLElement
+    contrastMask: HTMLElement
+    links: NodeListOf<HTMLElement>
+    qrCode: HTMLElement
+    qrImage: HTMLImageElement
+
+    messages: string[]
+    message: string
+    messageLineBreak: boolean
+    lastMessage: string
+    lastTypeTime: number
+    writeDelay: number
+    canWrite: boolean
+    isPaused: boolean
+
+    constructor() {
+      this.el = document.querySelector('.site-head')
+      this.contrastButton = document.querySelector('.js-contrast')
+      this.console = document.querySelector('.js-console')
+      this.contrastMask = document.querySelector('.js-contrast-mask')
+      this.links = this.el.querySelectorAll('a.js-menu-link')
+      this.qrCode = this.el.querySelector('.js-qr-code')
+      this.qrImage = this.el.querySelector('.js-qr-image')
+
+      this.messages = [
+        'Preparing virtual wardrobe routines',
+        'Loading avatar systems',
+        'Syncing styling modules',
+        'Calibrating AuraMirror',
+        'Preparing preview surfaces',
+        'Checking wardrobe signals',
+        'Aligning interface layers',
+        'Connecting style and motion',
+        'Building the next fitting scene',
+        'Routing every click with care',
+        'Rendering the smart mirror shell',
+        'Preparing recommendation history',
+      ]
+      this.message = ''
+      this.messageLineBreak = false
+      this.lastMessage = ''
+      this.lastTypeTime = 0
+      this.writeDelay = 0
+      this.canWrite = false
+      this.isPaused = true
+
+      Ticker.nextTick(this.init, this)
+    }
+
+    init() {
+      this.bindEvents()
+      this.syncQrTheme()
+    }
+
+    bindEvents() {
+      this.contrastButton.addEventListener(
+        'click',
+        this.toggleContrast.bind(this),
+        { passive: true }
+      )
+
+      this.links.forEach((link) => {
+        link.addEventListener('click', this.moveToSection.bind(this))
+      })
+
+      document.addEventListener('intro', this.intro.bind(this), { once: true })
+
+      this.el.addEventListener('intersect', this.onIntersect.bind(this), {
+        passive: true,
+      })
+    }
+
+    syncQrTheme() {
+      if (!this.qrCode || !this.qrImage) return
+
+      const contrasted =
+        document.documentElement.classList.contains('theme-contrasted')
+
+      this.qrImage.src = contrasted ? QR_DEFAULT_SRC : QR_LIGHT_SRC
+
+      const bg = contrasted ? '#fff0eb' : '#f40c3f'
+      this.qrCode.style.background = bg
+      this.qrImage.style.background = bg
+    }
+
+    onIntersect(e) {
+      this.isPaused = !e.detail.isIntersecting
+
+      if (this.isPaused) {
+        Emitter.off('tick', this.updateConsole, this)
+      } else {
+        Emitter.on('tick', this.updateConsole, this)
+      }
+    }
+
+    intro() {
+      const logo = this.el.querySelector('.js-logo')
+      const menuItems = this.el.querySelectorAll('.js-menu-item')
+      const items = [logo, ...menuItems]
+
+      const tl = gsap.timeline()
+
+      tl.set(this.el, {
+        opacity: 1,
+      })
+
+      tl.from(
+        this.el,
+        {
+          y: '-100%',
+          duration: 1.5,
+          ease: 'expo.inOut',
+        },
+        1
+      )
+
+      tl.from(
+        items,
+        {
+          y: '-100%',
+          duration: 1.5,
+          ease: 'expo.out',
+          stagger: 0.1,
+        },
+        1.5
+      )
+
+      tl.fromTo(
+        this.qrCode,
+        {
+          '--bg-p': '0%',
+        },
+        {
+          '--bg-p': '100%',
+          duration: 1.5,
+          ease: 'expo.out',
+        },
+        1.75
+      )
+
+      tl.call(
+        () => {
+          this.canWrite = true
+        },
+        null,
+        1.5
+      )
+
+      tl.set(this.el, {
+        clearProps: 'transform',
+      })
+    }
+
+    toggleContrast() {
+      let fromX = '0'
+      let toX = '-100%'
+
+      if (document.documentElement.classList.contains('theme-contrasted')) {
+        fromX = '-100%'
+        toX = '0'
+      }
+
+      gsap.fromTo(
+        this.contrastMask,
+        {
+          x: fromX,
+        },
+        {
+          x: toX,
+          duration: 1,
+          ease: 'expo.inOut',
+          onComplete: () => {
+            this.contrastMask.style.transform = ''
+
+            if (toX === '0') {
+              document.documentElement.classList.remove('theme-contrasted')
+            } else {
+              document.documentElement.classList.add('theme-contrasted')
+            }
+
+            this.syncQrTheme()
+
+            Emitter.emit(
+              'contrastchange',
+              document.documentElement.classList.contains('theme-contrasted')
+                ? 'contrasted'
+                : 'default'
+            )
+          },
+        }
+      )
+
+      if (toX !== '0') {
+        document.documentElement.classList.add('theme-contrasted')
+      }
+
+      this.syncQrTheme()
+      window.setTimeout(() => this.syncQrTheme(), 1050)
+    }
+
+    moveToSection(e) {
+      e.preventDefault()
+
+      const id = e.currentTarget.getAttribute('href')
+
+      window.lenis.scrollTo(id, {
+        duration: 1.5,
+        easing: (t) =>
+          t < 0.5 ? 16 * t * t * t * t * t : 1 + 16 * --t * t * t * t * t,
+      })
+    }
+
+    updateConsole(time) {
+      if (!this.canWrite || time - this.lastTypeTime < this.writeDelay) {
+        return
+      }
+
+      if (this.message === '') {
+        this.message = this.getRandomMessage()
+        this.writeDelay = 2000
+      } else {
+        if (this.message === this.lastMessage || this.messageLineBreak) {
+          this.console.textContent += '\n'
+        }
+
+        const char = this.message.charAt(0)
+        this.message = this.message.substring(1)
+
+        if (char === ',' || char === ' ') {
+          this.writeDelay = 100
+        } else if (char === '' || char === '.') {
+          this.writeDelay = 300
+        } else {
+          this.writeDelay = 20
+        }
+
+        this.console.textContent += char
+        this.messageLineBreak = false
+      }
+
+      this.console.textContent = this.console.textContent
+        .split('\n')
+        .slice(-5)
+        .join('\n')
+
+      this.lastTypeTime = time
+    }
+
+    getRandomMessage() {
+      let message =
+        this.messages[Math.floor(Math.random() * this.messages.length)]
+
+      if (message === this.lastMessage) {
+        message = this.getRandomMessage()
+      }
+
+      this.lastMessage = message
+      return message
+    }
+  }
+
+  new Section()
+</script>
+
+<style lang="scss">
+  .site-head {
+    position: relative;
+    z-index: 5;
+
+    width: 100%;
+
+    border-bottom: 1px solid color(secondary);
+    opacity: 0;
+
+    &__container {
+      @include flex(row, stretch, space-between);
+
+      width: 100%;
+      height: 6rem;
+
+      @include mq(phone) {
+        height: 4rem;
+      }
+    }
+
+    .sb-logo {
+      padding: 1.5rem;
+      width: 6rem;
+      height: 6rem;
+
+      border-right: 1px solid color(secondary);
+
+      @include mq(tablet) {
+        order: 1;
+      }
+
+      @include mq(phone) {
+        padding: 1rem;
+        width: 4rem;
+        height: 4rem;
+      }
+
+      svg {
+        width: 3rem;
+        height: 3rem;
+
+        @include mq(phone) {
+          width: 1.875rem;
+          height: 1.875rem;
+        }
+      }
+    }
+
+    .sb-console {
+      @include flex(column, flex-start, flex-end);
+
+      margin: 0 auto 0 0;
+      padding: 1.5rem;
+
+      font: 400 8px / 1.4 font-family(fraktion);
+      text-transform: uppercase;
+      white-space: pre-line;
+
+      @include mq(tablet) {
+        order: 2;
+      }
+
+      @include mq(tablet-sm) {
+        display: none;
+      }
+
+      &__inner {
+        @include flex(column, flex-start, flex-end);
+
+        height: 5.6em;
+
+        overflow: hidden;
+      }
+    }
+
+    .sb-menu {
+      border-left: 1px solid color(secondary);
+
+      @include mq(desktop-xs) {
+        padding: 0 1rem;
+      }
+
+      @include mq(tablet) {
+        display: none;
+      }
+
+      .sb__list {
+        @include flex(row, stretch, flex-start);
+
+        margin: 0;
+        padding: 0;
+        height: 100%;
+
+        list-style: none;
+      }
+
+      .sb__item {
+        margin: 0;
+        padding: 0;
+      }
+
+      .sb__text {
+        position: relative;
+
+        display: inline-block;
+
+        &:before {
+          position: absolute;
+          top: calc(50% - 3px);
+          left: -13px;
+
+          border-top: 3px solid transparent;
+          border-left: 6px solid currentcolor;
+          border-bottom: 3px solid transparent;
+          opacity: 0;
+
+          content: '';
+        }
+      }
+
+      .js-menu-link {
+        display: block;
+        height: 100%;
+        padding: 0 3rem;
+
+        color: color(secondary);
+        font: 400 14px / 1 font-family(fraktion);
+        letter-spacing: 0.05em;
+        text-decoration: none;
+        text-transform: uppercase;
+        white-space: nowrap;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+
+        @include flex(row, center, center);
+
+        @include mq(desktop-sm) {
+          padding: 0 2rem;
+        }
+
+        @include mq(desktop-xs) {
+          padding: 0 1rem;
+        }
+
+        @keyframes blink-in {
+          0%,
+          30%,
+          60% {
+            opacity: 0;
+          }
+
+          15%,
+          45%,
+          75%,
+          100% {
+            opacity: 1;
+          }
+        }
+
+        &:hover {
+          text-shadow: 0 0 1px currentcolor;
+
+          .sb__text:before {
+            animation: blink-in 0.3s ease(in-out-expo) forwards;
+          }
+        }
+      }
+
+      .am-auth-nav-item + .am-auth-nav-item .js-menu-link {
+        padding-left: 1.5rem;
+
+        @include mq(desktop-sm) {
+          padding-left: 1.25rem;
+        }
+
+        @include mq(desktop-xs) {
+          padding-left: 1rem;
+        }
+      }
+    }
+
+    .sb-contrast {
+      @include flex(row, center, center);
+
+      position: relative;
+
+      width: 48px;
+      height: 96px;
+
+      appearance: none;
+      background: none;
+      border: 0;
+      border-left: 1px solid color(secondary);
+      border-radius: 0;
+      cursor: pointer;
+
+      @include mq(tablet) {
+        order: 4;
+      }
+
+      @include mq(phone) {
+        height: 100%;
+      }
+
+      &:before {
+        position: absolute;
+        top: 0;
+        left: 0;
+
+        width: 100%;
+        height: 100%;
+
+        background: color(secondary);
+        scale: 0 1;
+        transform-origin: 0 50%;
+
+        content: '';
+      }
+
+      .sb__icon {
+        width: 20px;
+        height: 20px;
+
+        background: color(secondary);
+        clip-path: var(--path);
+
+        &:before {
+          position: absolute;
+          top: 0;
+          left: 0;
+
+          display: block;
+          width: 100%;
+          height: 100%;
+
+          background: color(primary);
+          scale: 0 1;
+          transform-origin: 0 50%;
+
+          content: '';
+        }
+      }
+
+      &:hover {
+        &:before {
+          scale: 1 1;
+        }
+
+        .sb__icon {
+          &:before {
+            scale: 1 1;
+          }
+        }
+      }
+
+      &:before,
+      .sb__icon:before {
+        transition: scale 0.3s ease(in-out-expo);
+      }
+    }
+
+    .sb-availability {
+      background: linear-gradient(
+        0deg,
+        transparent calc(50% - 1px),
+        color(secondary) calc(50% - 1px),
+        color(secondary) 50%,
+        transparent 50%
+      );
+      border-left: 1px solid color(secondary);
+
+      font: 200 1.25rem / 48px font-family(editorial);
+
+      @include mq(tablet) {
+        order: 3;
+      }
+
+      @include mq(tablet-sm) {
+        flex-grow: 1;
+        border-left: 0;
+      }
+
+      @include mq(phone) {
+        @include flex(column, center, center);
+
+        flex-grow: 0;
+        background: none;
+        border-left: 1px solid color(secondary);
+        order: 3;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .sb__line {
+        display: block;
+        padding: 1px 1.25rem 0;
+      }
+
+      .sb__text {
+        @include mq(phone) {
+          display: none;
+        }
+      }
+
+      a {
+        position: relative;
+        display: inline-block;
+
+        color: color(secondary);
+        font-weight: 400;
+        text-decoration: none;
+
+        &:before {
+          position: absolute;
+          bottom: calc(50% - 0.5em);
+          left: 0;
+
+          width: 100%;
+          height: 1px;
+
+          background: currentcolor;
+          scale: 0 1;
+          transform-origin: 100% 50%;
+
+          transition: scale 0.3s ease(in-out-expo);
+
+          content: '';
+        }
+
+        &:hover {
+          &:before {
+            scale: 1 1;
+            transform-origin: 0 50%;
+          }
+        }
+      }
+    }
+
+    .sb-qr-code {
+      --bg-p: 0%;
+
+      position: relative;
+      display: block;
+      padding: 0.75rem;
+
+      border-left: 1px solid color(secondary);
+
+      @include mq(desktop-sm) {
+        display: none;
+      }
+
+      img {
+        position: relative;
+        z-index: 1;
+        display: block;
+      }
+
+      &:before {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        bottom: 0.75rem;
+        left: 0.75rem;
+
+        background: linear-gradient(
+            180deg,
+            transparent,
+            transparent var(--bg-p),
+            color(secondary) var(--bg-p),
+            color(secondary)
+          )
+          top / 100% 12.5% repeat;
+
+        content: '';
+      }
+    }
+  }
+</style>

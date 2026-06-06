@@ -1,0 +1,911 @@
+---
+const modules = [
+  {
+    id: 'avatar',
+    tag: 'Module 01',
+    title: 'Avatar',
+    text: 'Photo import + avatar creation',
+  },
+  {
+    id: 'wardrobe',
+    tag: 'Module 02',
+    title: 'Wardrobe',
+    text: 'Open clothing library',
+    interactive: true,
+    triggerId: 'am-styling-trigger',
+    controlsId: 'am-styling-overlay',
+  },
+  {
+    id: 'stylist',
+    tag: 'Module 03',
+    title: 'AI Stylist',
+    text: 'Context-aware recommendation engine',
+    interactive: true,
+    triggerId: 'am-ai-trigger',
+    controlsId: 'am-ai-overlay',
+  },
+  {
+    id: 'preview',
+    tag: 'Module 04',
+    title: 'Try-On',
+    text: 'Preview pipeline ready for fitting output',
+  },
+]
+---
+
+<section id="about" class="s-about" data-intersect>
+  <div class="s__inner js-inner">
+    <div class="s__block s__block--about">
+      <h2 class="s__title">Avatar Studio</h2>
+
+      <div class="s__content">
+        <p>
+          AuraMirror starts by importing real portrait photos and turning them into a
+          reusable virtual identity for every later styling decision.
+        </p>
+
+        <p>
+          This first module establishes the avatar pipeline we will use for wardrobe
+          selection, AI recommendations, and future try-on rendering.
+        </p>
+
+        <div class="am-panel" id="am-avatar-panel">
+          <div class="am-grid">
+            <div class="am-fields">
+              <label class="am-label">
+                Upload Portrait Photo
+                <input
+                  id="am-photo-input"
+                  class="am-file-input"
+                  type="file"
+                  accept="image/*"
+                />
+              </label>
+
+              <div class="am-file-row">
+                <button id="am-photo-trigger" class="am-button" type="button">
+                  Choose File
+                </button>
+                <span id="am-photo-status" class="am-file-status">No file selected</span>
+              </div>
+
+              <button id="am-generate-avatar" class="am-button" type="button">
+                Generate Virtual Avatar
+              </button>
+
+              <p class="am-note">
+                Tip: use a frontal portrait photo for cleaner local preview alignment.
+              </p>
+
+              <p id="am-figure-status" class="am-status">
+                Upload a portrait to begin the Avatar Studio pipeline.
+              </p>
+            </div>
+
+            <div class="am-preview-box" id="am-avatar-preview-box">
+              <span id="am-avatar-placeholder">No avatar generated yet</span>
+              <canvas
+                id="am-avatar-canvas"
+                width="520"
+                height="680"
+                hidden
+              ></canvas>
+            </div>
+          </div>
+        </div>
+      </div><!-- .s__content -->
+    </div><!-- .s__block -->
+
+    <div class="s__block s__block--modules">
+      <h2 class="s__title">System Modules</h2>
+
+      <ul class="s__modules">
+        {
+          modules.map((module) => (
+            <li
+              id={module.interactive ? module.triggerId : undefined}
+              class:list={[
+                's__module',
+                'js-module',
+                `s__module--${module.id}`,
+                module.interactive && 'am-module-entry',
+              ]}
+              role={module.interactive ? 'button' : undefined}
+              tabindex={module.interactive ? '0' : undefined}
+              aria-expanded={module.interactive ? 'false' : undefined}
+              aria-controls={module.interactive ? module.controlsId : undefined}
+              aria-haspopup={module.interactive ? 'dialog' : undefined}
+            >
+              <span class="s__module__inner">
+                <span class="s__module__eyebrow">{module.tag}</span>
+                <strong class="s__module__name">{module.title}</strong>
+                <span class="s__module__text">{module.text}</span>
+              </span>
+
+              <span class="s__module__mask" />
+            </li>
+          ))
+        }
+      </ul><!-- .s__modules -->
+
+      <div id="am-preview-stage" class="am-preview-stage">
+        <div class="am-preview-stage__frame">
+          <div class="am-preview-stage__head">
+            <span class="am-preview-stage__label">Try-On Preview</span>
+            <span id="am-preview-stage-status" class="am-preview-stage__status"
+              >Virtual fitting terminal</span
+            >
+          </div>
+
+          <div class="am-preview-stage__screen">
+            <div class="am-preview-stage__screenbar">
+              <span class="am-preview-stage__screen-id">Fit Mirror Display</span>
+              <span class="am-preview-stage__screen-dots"
+                ><span></span><span></span><span></span></span
+              >
+              <span
+                id="am-preview-stage-screen-state"
+                class="am-preview-stage__screen-state"
+                >Awaiting wardrobe selection</span
+              >
+            </div>
+
+            <div class="am-preview-box am-preview-box--styling am-preview-stage__viewport">
+              <span id="am-tryon-placeholder"
+                >Open Wardrobe, choose garments, then apply them to render the try-on
+                preview here.</span
+              >
+              <img id="am-tryon-image" alt="Virtual styling preview" hidden />
+              <canvas
+                id="am-tryon-canvas"
+                width="520"
+                height="680"
+                hidden
+              ></canvas>
+            </div>
+          </div>
+
+          <div id="am-recommendation-card" class="am-history-item am-preview-stage__summary">
+          </div>
+        </div>
+      </div>
+
+      <section
+        id="am-styling-overlay"
+        class="am-styling-overlay"
+        hidden
+        aria-hidden="true"
+      >
+        <div class="am-styling-overlay__backdrop" data-am-close-styling></div>
+
+        <div
+          class="am-styling-overlay__dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="am-styling-title"
+        >
+          <header class="am-styling-overlay__header">
+            <div>
+              <p class="am-styling-overlay__eyebrow">Module 02</p>
+              <h3 id="am-styling-title" class="am-styling-overlay__title">
+                Outfit selection
+              </h3>
+            </div>
+
+            <button
+              id="am-styling-close"
+              class="am-styling-close"
+              type="button"
+              aria-label="Close wardrobe dialog"
+            >
+              Close
+            </button>
+          </header>
+
+          <div class="am-styling-overlay__meta">
+            <div class="am-styling-stat">
+              <span class="am-styling-stat__label">Figure</span>
+              <span id="am-styling-figure-status" class="am-styling-stat__value"
+                >Waiting for avatar status.</span
+              >
+            </div>
+
+            <div class="am-styling-stat">
+              <span class="am-styling-stat__label">Wardrobe</span>
+              <span id="am-wardrobe-status" class="am-styling-stat__value"
+                >Ready to load garments.</span
+              >
+            </div>
+
+            <div class="am-styling-stat">
+              <span class="am-styling-stat__label">Selected</span>
+              <span id="am-selection-status" class="am-styling-stat__value"
+                >0 garments selected</span
+              >
+            </div>
+          </div>
+
+          <div class="am-styling-overlay__body">
+            <section class="am-panel am-panel--styling">
+              <div class="am-styling-toolbar">
+                <div class="am-styling-toolbar__left">
+                  <button
+                    id="am-refresh-wardrobe"
+                    class="am-button"
+                    type="button"
+                    aria-label="Refresh wardrobe garments"
+                  >
+                    Refresh Wardrobe
+                  </button>
+                  <button
+                    id="am-generate-tryon"
+                    class="am-button"
+                    type="button"
+                    aria-label="Apply selected garments to the try-on preview"
+                  >
+                    Apply To Preview
+                  </button>
+                </div>
+
+                <button
+                  id="am-open-ai-stylist"
+                  class="am-button am-button--ghost am-styling-toolbar__right"
+                  type="button"
+                  aria-label="Open AI stylist dialog"
+                >
+                  AI Stylist
+                </button>
+              </div>
+
+              <p class="am-note">
+                Select up to 4 garments. This wardrobe shell is ready, and the next
+                phase will wire in live items and selection behavior.
+              </p>
+
+              <div id="am-wardrobe-grid" class="am-wardrobe-grid">
+                <div class="am-empty-state">Wardrobe garments will load here.</div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="am-ai-overlay" class="am-ai-overlay" hidden aria-hidden="true">
+        <div class="am-ai-overlay__backdrop" data-am-close-ai></div>
+
+        <div
+          class="am-ai-overlay__dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="am-ai-title"
+        >
+          <header class="am-ai-overlay__header">
+            <div>
+              <p class="am-ai-overlay__eyebrow">Module 03</p>
+              <h3 id="am-ai-title" class="am-ai-overlay__title">AI Stylist</h3>
+            </div>
+
+            <button
+              id="am-ai-close"
+              class="am-styling-close"
+              type="button"
+              aria-label="Close AI stylist dialog"
+            >
+              Close
+            </button>
+          </header>
+
+          <div class="am-ai-overlay__body">
+            <section class="am-panel am-panel--ai">
+              <div class="am-ai-toolbar">
+                <label class="am-label am-ai-field">
+                  Occasion
+                  <select id="am-ai-occasion" class="am-select">
+                    <option value="office">Office</option>
+                    <option value="casual">Casual</option>
+                    <option value="travel">Travel</option>
+                    <option value="formal">Formal</option>
+                    <option value="sport">Sport</option>
+                  </select>
+                </label>
+
+                <label class="am-label am-ai-field">
+                  Recommendation Mode
+                  <select id="am-ai-mode" class="am-select">
+                    <option value="local">Local</option>
+                    <option value="api">API</option>
+                  </select>
+                </label>
+
+                <button
+                  id="am-ai-recommend"
+                  class="am-button"
+                  type="button"
+                  aria-label="Generate an AI styling recommendation"
+                >
+                  AI Recommend
+                </button>
+              </div>
+
+              <div class="am-ai-layout">
+                <aside class="am-ai-context">
+                  <div class="am-ai-context__block">
+                    <span class="am-styling-stat__label">Weather Context</span>
+                    <p id="am-ai-weather-city" class="am-ai-context__value">
+                      City: Unknown
+                    </p>
+                    <p id="am-ai-weather-temperature" class="am-ai-context__value">
+                      Temperature: --
+                    </p>
+                    <p id="am-ai-weather-humidity" class="am-ai-context__value">
+                      Humidity: --
+                    </p>
+                  </div>
+
+                  <div class="am-ai-context__block">
+                    <span class="am-styling-stat__label">Stylist Status</span>
+                    <p id="am-ai-status" class="am-ai-context__value">
+                      Configure the occasion and mode, then ask the stylist for a
+                      recommendation.
+                    </p>
+                  </div>
+                </aside>
+
+                <div class="am-ai-visual">
+                  <div class="am-preview-box am-preview-box--ai">
+                    <span id="am-ai-visual-placeholder"
+                      >Recommendation visuals will render here after the next phase.</span
+                    >
+                    <canvas
+                      id="am-ai-canvas"
+                      width="520"
+                      height="680"
+                      hidden
+                    ></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <div id="am-ai-results" class="am-ai-results">
+                Recommendation results will appear here once the stylist workflow is
+                wired in.
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </div><!-- .s__block -->
+  </div><!-- .s__inner -->
+
+  <svg class="s__grid js-grid" aria-hidden="true">
+    <path class="js-path" d=""></path>
+  </svg>
+</section>
+
+<script>
+  import Emitter from '../utils/Emitter'
+  import Ticker from '../utils/Ticker'
+
+  class Section {
+    el: HTMLElement
+    inner: HTMLElement
+    svg: SVGElement
+    path: SVGPathElement
+    modules: NodeListOf<HTMLElement>
+
+    bounding: {
+      left: number
+      top: number
+      width: number
+      height: number
+      innerWidth: number
+      innerHeight: number
+      offsetY: number
+    }
+
+    scroll: {
+      start: number
+      end: number
+      p: number
+      sp: number
+    }
+
+    lines: any[]
+    isPaused: boolean
+    isForced: boolean
+
+    constructor() {
+      this.el = document.querySelector('.s-about')
+      this.inner = this.el.querySelector('.js-inner')
+      this.svg = this.el.querySelector('.js-grid')
+      this.path = this.el.querySelector('.js-path')
+      this.modules = this.el.querySelectorAll('.js-module')
+
+      this.lines = []
+      this.isPaused = true
+      this.isForced = false
+
+      if (document.readyState === 'complete') {
+        Ticker.nextTick(this.init, this)
+      } else {
+        Emitter.once('siteLoaded', this.init, this)
+      }
+    }
+
+    init() {
+      this.setSize()
+      this.setScroll()
+      this.bindEvents()
+
+      if (this.el.classList.contains('is-in-view') && this.isPaused) {
+        this.isPaused = false
+        Emitter.on('tick', this.tick, this)
+      }
+    }
+
+    bindEvents() {
+      Emitter.on('resize', this.onResize, this)
+      Emitter.on('scroll', this.onScroll, this)
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-revealed')
+              observer.unobserve(entry.target)
+            }
+          })
+        },
+        {
+          threshold: 0.35,
+        }
+      )
+
+      this.modules.forEach((module) => {
+        observer.observe(module)
+      })
+
+      this.el.addEventListener('intersect', this.onIntersect.bind(this), {
+        passive: true,
+      })
+    }
+
+    onResize(widthChanged) {
+      if (widthChanged) {
+        this.setSize()
+        this.setScroll()
+        this.isForced = true
+      }
+    }
+
+    onScroll(scrollY) {
+      const { scroll } = this
+      const trigger = scrollY + window.safeHeight
+
+      if (trigger < scroll.start) {
+        scroll.p = 0
+      } else if (trigger > scroll.end) {
+        scroll.p = 1
+      } else {
+        scroll.p = (trigger - scroll.start) / (scroll.end - scroll.start)
+      }
+    }
+
+    onIntersect(e) {
+      this.isPaused = !e.detail.isIntersecting
+
+      if (this.isPaused) {
+        Emitter.off('tick', this.tick, this)
+      } else {
+        Emitter.on('tick', this.tick, this)
+      }
+    }
+
+    setSize() {
+      const bounding = this.el.getBoundingClientRect()
+
+      this.bounding = {
+        left: bounding.left,
+        top: bounding.top,
+        width: this.el.clientWidth,
+        height: this.el.clientHeight,
+        innerWidth: this.inner.clientWidth,
+        innerHeight: this.inner.clientHeight,
+        offsetY: 0,
+      }
+
+      this.svg.style.width = `${this.bounding.width}px`
+      this.svg.style.height = `${this.bounding.height}px`
+    }
+
+    setScroll() {
+      const { bounding } = this
+
+      this.scroll = {
+        start: bounding.top + window.scrollY,
+        end:
+          bounding.top + window.scrollY + bounding.height + window.safeHeight,
+        p: 0,
+        sp: 0,
+      }
+
+      this.onScroll(window.scrollY)
+      this.scroll.sp = this.scroll.p
+    }
+
+    setLines() {
+      const { bounding } = this
+
+      this.lines = []
+
+      const innerX = (bounding.width - bounding.innerWidth) / 2
+      const innerY =
+        (bounding.height - bounding.innerHeight) / 2 + bounding.offsetY
+
+      const vLines = window.safeWidth > 767 ? 12 : 8
+      const hLines = 4
+      const outerGapX = bounding.width / vLines
+      const outerGapY = bounding.height / vLines
+      const innerGapX = bounding.innerWidth / vLines
+      const innerGapY = bounding.innerHeight / vLines
+      const hGap = 1 / hLines
+
+      const outer = {
+        x1: 0,
+        x2: bounding.width,
+        y1: 0,
+        y2: bounding.height,
+      }
+      const inner = {
+        x1: innerX,
+        x2: innerX + bounding.innerWidth,
+        y1: innerY,
+        y2: innerY + bounding.innerHeight,
+      }
+      const corners = []
+
+      corners.push([
+        { x: outer.x1, y: outer.y1 },
+        { x: inner.x1, y: inner.y1 },
+      ])
+      corners.push([
+        { x: outer.x2, y: outer.y1 },
+        { x: inner.x2, y: inner.y1 },
+      ])
+      corners.push([
+        { x: outer.x2, y: outer.y2 },
+        { x: inner.x2, y: inner.y2 },
+      ])
+      corners.push([
+        { x: outer.x1, y: outer.y2 },
+        { x: inner.x1, y: inner.y2 },
+      ])
+
+      for (let i = 1; i < vLines; i++) {
+        this.lines.push([
+          { x: outerGapX * i, y: outer.y1 },
+          { x: innerX + innerGapX * i, y: inner.y1 },
+        ])
+
+        this.lines.push([
+          { x: outerGapX * i, y: outer.y2 },
+          { x: innerX + innerGapX * i, y: inner.y2 },
+        ])
+      }
+
+      for (let i = 1; i < hLines; i++) {
+        const index = 1 - Math.pow(1 - hGap * i, 2)
+        const [l1, l2] = [corners[0], corners[1]]
+        const p1 = {
+          x: l1[0].x + (l1[1].x - l1[0].x) * index,
+          y: l1[0].y + (l1[1].y - l1[0].y) * index,
+        }
+        const p2 = {
+          x: l2[0].x + (l2[1].x - l2[0].x) * index,
+          y: l2[0].y + (l2[1].y - l2[0].y) * index,
+        }
+        this.lines.push([p1, p2])
+      }
+
+      for (let i = 1; i < hLines; i++) {
+        const index = 1 - Math.pow(1 - hGap * i, 2)
+        const [l1, l2] = [corners[3], corners[2]]
+        const p1 = {
+          x: l1[0].x + (l1[1].x - l1[0].x) * index,
+          y: l1[0].y + (l1[1].y - l1[0].y) * index,
+        }
+        const p2 = {
+          x: l2[0].x + (l2[1].x - l2[0].x) * index,
+          y: l2[0].y + (l2[1].y - l2[0].y) * index,
+        }
+        this.lines.push([p1, p2])
+      }
+
+      for (let i = 0; i <= vLines; i++) {
+        this.lines.push([
+          { x: outer.x1, y: outerGapY * i },
+          { x: inner.x1, y: innerY + innerGapY * i },
+        ])
+
+        this.lines.push([
+          { x: outer.x2, y: outerGapY * i },
+          { x: inner.x2, y: innerY + innerGapY * i },
+        ])
+      }
+
+      this.drawLines()
+    }
+
+    drawLines() {
+      let d = ''
+
+      this.lines.forEach((points) => {
+        const p1 = points[0]
+        const p2 = points[1]
+        d += `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} `
+      })
+
+      this.path.setAttribute('d', d)
+    }
+
+    tick() {
+      const { bounding, el, scroll } = this
+
+      scroll.sp += (scroll.p - scroll.sp) * 0.2
+      const sd = Math.round((scroll.p - scroll.sp) * 1000) / 1000
+
+      bounding.offsetY =
+        (window.safeWidth > 767 ? 240 : 120) * (this.scroll.sp * 2 - 1)
+
+      el.style.setProperty('--offset-y', `${this.bounding.offsetY}px`)
+
+      if (sd !== 0 || this.isForced) {
+        this.setLines()
+        this.drawLines()
+      }
+
+      this.isForced = false
+    }
+  }
+
+  new Section()
+</script>
+
+<style lang="scss">
+  .s-about {
+    --width: 39.25rem;
+
+    position: relative;
+    z-index: 3;
+
+    padding: 15rem 0;
+
+    overflow: hidden;
+
+    @include mq(desktop-xs) {
+      --width: 32rem;
+    }
+
+    @include mq(tablet-sm) {
+      --width: 70vw;
+      padding: 7.5rem 0;
+    }
+
+    @include mq(phone) {
+      --width: 80vw;
+    }
+
+    .s__inner {
+      position: relative;
+      z-index: 2;
+
+      margin: 0 auto;
+      width: var(--width);
+
+      border: 1px solid color(secondary);
+
+      transform: translate3d(0, var(--offset-y), 0);
+      will-change: transform;
+    }
+
+    .s__title {
+      margin: 0;
+      padding: 0 0 2px;
+
+      background: color(secondary);
+
+      color: color(primary);
+      font: 700 12px / 24px font-family(fraktion);
+      letter-spacing: 0.1em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .s__content {
+      padding: 4.5rem;
+
+      font: 200 2rem / 1.5 font-family(editorial);
+
+      @include mq(desktop-xs) {
+        font-size: 1.5rem;
+      }
+
+      @include mq(phone) {
+        padding: 15vw 10vw;
+      }
+
+      p {
+        margin: 0 0 1.25em;
+      }
+    }
+
+    .s__modules {
+      margin: 0;
+      padding: 0;
+
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0;
+
+      background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 1px,
+        map.get($theme-colors, 'default', 'secondary') 1.5px,
+        map.get($theme-colors, 'default', 'secondary') 2.5px,
+        transparent 3px,
+        map.get($theme-colors, 'default', 'primary') 11px
+      );
+
+      list-style: none;
+      overflow: hidden;
+
+      @include mq(phone) {
+        grid-template-columns: 1fr;
+      }
+
+      @at-root :global(.theme-contrasted) & {
+        background: repeating-linear-gradient(
+          -45deg,
+          transparent,
+          transparent 1px,
+          map.get($theme-colors, 'contrasted', 'secondary') 1.5px,
+          map.get($theme-colors, 'contrasted', 'secondary') 2.5px,
+          transparent 3px,
+          map.get($theme-colors, 'contrasted', 'primary') 11px
+        );
+      }
+    }
+
+    .s__module {
+      position: relative;
+      z-index: 2;
+
+      min-height: 15rem;
+      margin: 0;
+      padding: 1.25rem;
+
+      background: color(primary);
+      clip-path: inset(-1px);
+
+      cursor: default;
+
+      &:before {
+        position: absolute;
+        top: -1px;
+        right: 0;
+        bottom: 0;
+        left: -1px;
+
+        border: 1px solid color(secondary);
+        content: '';
+      }
+
+      &__inner {
+        position: relative;
+        z-index: 1;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: 0.9rem;
+        width: 100%;
+        min-height: 100%;
+
+        translate: -50% 0;
+        transition:
+          translate 1s ease(out-quint),
+          scale 1.2s ease(in-out-quint);
+      }
+
+      &__mask {
+        position: absolute;
+        inset: -1px;
+
+        background: color(secondary);
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+
+        transition: clip-path 0.8s ease(in-out-quint);
+
+        &:before {
+          position: absolute;
+          inset: 0;
+
+          background: color(primary);
+          mask: url('/images/asset-star.svg') center / 1.5rem 1.5rem no-repeat;
+
+          transition: transform 0.8s ease(in-cubic);
+          content: '';
+        }
+      }
+
+      &__eyebrow {
+        display: inline-block;
+
+        font: 700 12px / 1 font-family(fraktion);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      &__name {
+        display: block;
+
+        font: 700 clamp(3.5rem, 9vw, 5.5rem) / 0.88 font-family(bigger);
+        text-transform: uppercase;
+      }
+
+      &__text {
+        display: block;
+
+        max-width: 18rem;
+        font: 200 1.35rem / 1.2 font-family(editorial);
+      }
+
+      &.am-module-entry {
+        cursor: pointer;
+      }
+
+      &.is-revealed {
+        .s__module__inner {
+          translate: 0 0;
+        }
+
+        .s__module__mask {
+          clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
+
+          &:before {
+            transform: translate3d(50%, 0, 0);
+          }
+        }
+      }
+    }
+
+    .s__grid {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+
+      width: 100%;
+      height: 100%;
+
+      pointer-events: none;
+
+      path {
+        fill: none;
+        stroke: color(secondary);
+        stroke-width: 1px;
+      }
+    }
+
+    &.is-out-of-view {
+      .s__inner {
+        transform: none;
+        will-change: none;
+      }
+
+      .s__grid {
+        display: none;
+      }
+    }
+  }
+</style>

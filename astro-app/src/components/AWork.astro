@@ -1,0 +1,159 @@
+---
+const { caption, cssClass, index, palette, total } = Astro.props
+const key = `wrd-${index}`
+---
+
+<a-work class={cssClass}>
+  <div class="a__inner">
+    <div class="a__visual js-media" style={`--palette:${palette};`}>
+      <div class="a__visual__glow"></div>
+      <div class="a__visual__grid"></div>
+      <div class="a__visual__plate"></div>
+      <div class="a__visual__rail"></div>
+    </div>
+
+    <div class="a__caption">
+      <div class="a__caption__text">
+        {caption}
+      </div>
+
+      <div class="a__caption__key">
+        #{key} / {total}
+      </div>
+    </div>
+  </div>
+</a-work>
+
+<script>
+  class AWork extends HTMLElement {
+    static observedAttributes = ['progress']
+
+    isVisible: boolean
+
+    connectedCallback() {
+      this.isVisible = false
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+      if (name === 'progress') {
+        this.style.setProperty('--progress', newValue)
+
+        if (newValue === '1' || newValue === '-1') {
+          this.classList.remove('is-inview')
+          this.isVisible = false
+        } else if (!this.isVisible) {
+          this.classList.add('is-inview')
+          this.isVisible = true
+        }
+      }
+    }
+  }
+
+  customElements.define('a-work', AWork)
+</script>
+
+<style lang="scss">
+  a-work {
+    position: relative;
+    top: 0;
+    left: 0;
+
+    display: block;
+    margin: 0;
+    padding: 0.5rem 0.5rem 0;
+
+    background: color(secondary);
+    content-visibility: hidden;
+
+    transform-style: preserve-3d;
+
+    will-change: transform;
+
+    @include mq(phone) {
+      padding: 0.25rem;
+    }
+
+    .a__inner {
+      display: block;
+      margin: 0;
+      padding: 0;
+    }
+
+    .a__visual {
+      position: relative;
+      width: min(50vw, 54rem);
+      max-width: 50vw;
+      aspect-ratio: 1082 / 636;
+      overflow: hidden;
+      border: 1px solid rgba(243, 236, 229, 0.16);
+      background:
+        radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.18), transparent 24%),
+        linear-gradient(135deg, rgba(22, 0, 0, 0.96), rgba(244, 12, 63, 0.28)),
+        var(--palette, linear-gradient(135deg, #25141a, #6f2035, #c59d8c));
+
+      @include mq(phone) {
+        max-width: 80vw;
+      }
+    }
+
+    .a__visual__glow,
+    .a__visual__grid,
+    .a__visual__plate,
+    .a__visual__rail {
+      position: absolute;
+      inset: 0;
+    }
+
+    .a__visual__glow {
+      background:
+        radial-gradient(circle at 70% 25%, rgba(255, 255, 255, 0.18), transparent 26%),
+        radial-gradient(circle at 30% 75%, rgba(244, 12, 63, 0.22), transparent 28%);
+      mix-blend-mode: screen;
+    }
+
+    .a__visual__grid {
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+      background-size: 2.75rem 2.75rem;
+      opacity: 0.32;
+    }
+
+    .a__visual__plate {
+      inset: 13% 16%;
+      border: 1px solid rgba(243, 236, 229, 0.58);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02)),
+        rgba(22, 0, 0, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(244, 12, 63, 0.18);
+    }
+
+    .a__visual__rail {
+      inset: auto 10% 12% 10%;
+      height: 0.8rem;
+      background:
+        linear-gradient(90deg, rgba(243, 236, 229, 0.1), rgba(243, 236, 229, 0.88), rgba(243, 236, 229, 0.1));
+      box-shadow: 0 0 1.2rem rgba(243, 236, 229, 0.18);
+    }
+
+    .a__caption {
+      @include flex(row, center, space-between);
+
+      padding: 0.5rem 0.5rem;
+
+      color: color(primary);
+      font: 700 11px / 1 font-family(fraktion);
+      letter-spacing: 0.15em;
+      text-align: right;
+      text-transform: uppercase;
+
+      @include mq(phone) {
+        display: none;
+      }
+    }
+
+    &.is-inview {
+      content-visibility: visible;
+    }
+  }
+</style>

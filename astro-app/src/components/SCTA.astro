@@ -1,0 +1,43 @@
+<section class="s-cta am-history-section" data-intersect>
+  <div id="contact" class="s__inner am-history-shell">
+    <div class="am-history-panel">
+      <header class="am-history-panel__header">
+        <div>
+          <p class="am-history-panel__eyebrow">Recommendation History</p>
+          <h2 class="am-history-panel__title">Saved styling runs</h2>
+        </div>
+
+        <button
+          id="am-clear-history"
+          class="am-button am-button--ghost"
+          type="button"
+          aria-label="Clear recommendation history"
+        >
+          Clear History
+        </button>
+      </header>
+
+      <div class="am-history-panel__body">
+        <div
+          id="am-history-list"
+          class="am-history-list"
+          aria-label="Recommendation history list"
+        >
+          <div class="am-empty-state">Recommendation history will appear here.</div>
+        </div>
+
+        <aside
+          id="am-history-focus"
+          class="am-history-focus"
+          aria-live="polite"
+          aria-label="Focused recommendation details"
+        >
+          <p class="am-history-focus__eyebrow">Focus Detail</p>
+          <div id="am-history-focus-content" class="am-history-focus__content">
+            Hover or focus a history item to inspect its styling context.
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>

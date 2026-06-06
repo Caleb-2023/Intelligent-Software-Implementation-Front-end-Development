@@ -4,6 +4,9 @@
   "type": "module",
   "scripts": {
     "mirror": "node ./scripts/mirror-site.mjs",
-    "serve": "node ./scripts/serve-static.mjs"
+    "build:soc": "npm run build --prefix ./astro-app",
+    "dev:ui": "npm run dev --prefix ./astro-app",
+    "serve": "node ./scripts/serve-static.mjs",
+    "serve:mirror": "SERVE_MIRROR_ONLY=1 node ./scripts/serve-static.mjs"
   }
 }

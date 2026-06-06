@@ -1,0 +1,38 @@
+import { DEFAULT_WEATHER_CONTEXT } from './config'
+
+export const state = {
+  uploadedPhoto: '',
+  uploadedPhotoFile: null,
+  uploadedPhotoFingerprint: '',
+  syncedPhotoFingerprint: '',
+  avatarDataUrl: '',
+  figureId: '',
+  figureStatus: 'idle',
+  clothCatalog: [],
+  clothLookup: {},
+  selectedClothIds: [],
+  wardrobeMode: 'fallback',
+  wardrobeStatus: '',
+  lastRecommendation: null,
+  historyEntries: [],
+  historyScrollTween: null,
+  historyScrollTrigger: null,
+  historyDistortions: [],
+  aiFxRaf: 0,
+  aiFxCleanup: null,
+  aiFxController: null,
+  aiParallaxCleanup: null,
+  authMode: 'login',
+  authToken: '',
+  authUser: null,
+  weatherContext: {
+    ...DEFAULT_WEATHER_CONTEXT,
+  },
+  selections: {
+    top: 'graphite',
+    bottom: 'stone',
+    shoes: 'onyx',
+    weather: 'cloudy',
+    occasion: 'office',
+  },
+}
