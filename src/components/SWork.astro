@@ -28,10 +28,6 @@ const works = Array.from({ length: 18 }, (_, index) => ({
         </span>
       </h2>
 
-      <p id="am-vibe-status" class="s__dataset-status">
-        Waiting for wardrobe sync
-      </p>
-
       <div class="s__scene js-scene">
         {
           works.map((work, index) => (
@@ -71,15 +67,6 @@ const works = Array.from({ length: 18 }, (_, index) => ({
   import { SlowMo } from 'gsap/EasePack'
   import { ScrollTrigger } from 'gsap/ScrollTrigger'
   gsap.registerPlugin(ScrollTrigger, SlowMo)
-
-  const vibeFallbackPalettes = [
-    '#6f2035',
-    '#264256',
-    '#7b5c2f',
-    '#5b2a57',
-    '#1f5c52',
-    '#7c4330',
-  ]
 
   class Section {
     el: HTMLElement
@@ -184,10 +171,6 @@ const works = Array.from({ length: 18 }, (_, index) => ({
 
       this.isPaused = true
       this.loadIsStarted = false
-      document.addEventListener(
-        'am:wardrobe-updated',
-        this.onWardrobeUpdated.bind(this)
-      )
 
       // Init
       if (document.readyState === 'complete') {
@@ -210,67 +193,6 @@ const works = Array.from({ length: 18 }, (_, index) => ({
       this.setTimeline()
 
       this.bindEvents()
-    }
-
-    onWardrobeUpdated(event) {
-      const detail = (event as CustomEvent)?.detail || {}
-      this.applyWardrobeData(detail.items || [], detail.mode || 'fallback')
-    }
-
-    buildWardrobePalette(item, index) {
-      const base = {
-        graphite: '#4b5358',
-        berry: '#8e204c',
-        stone: '#b4a79d',
-        charcoal: '#50505a',
-        onyx: '#17181d',
-        cream: '#ece3cf',
-        white: '#efe8dc',
-        black: '#111217',
-        blue: '#1f4f79',
-        green: '#26745f',
-        red: '#9d2235',
-        brown: '#7b5c2f',
-      }
-      const color = String(item?.attributes?.color || '').toLowerCase()
-      const accent = base[color] || vibeFallbackPalettes[index % vibeFallbackPalettes.length]
-
-      return `linear-gradient(135deg, #160000, ${accent}, #f3ece5)`
-    }
-
-    applyWardrobeData(items, mode = 'fallback') {
-      const status = document.getElementById('am-vibe-status')
-      const records = Array.isArray(items) ? items.filter(Boolean) : []
-
-      if (status) {
-        status.textContent = records.length
-          ? `${mode === 'remote' ? 'Live' : 'Demo'} wardrobe gallery / ${records.length} garments`
-          : 'Non-functional visual gallery / awaiting wardrobe data'
-      }
-
-      if (!records.length) {
-        return
-      }
-
-      this.works.forEach((work, index) => {
-        const item = records[index % records.length]
-        const caption = work.el.querySelector('.a__caption__text')
-        const key = work.el.querySelector('.a__caption__key')
-        const visual = work.el.querySelector('.js-media')
-
-        if (caption) {
-          caption.textContent = item.name || `Wardrobe Item ${index + 1}`
-        }
-
-        if (key) {
-          key.textContent = `#${item._id || String(index).padStart(4, '0')} / ${String(records.length).padStart(2, '0')}`
-        }
-
-        if (visual) {
-          visual.style.setProperty('--palette', this.buildWardrobePalette(item, index))
-          visual.dataset.source = mode
-        }
-      })
     }
 
     /**
@@ -1040,28 +962,6 @@ const works = Array.from({ length: 18 }, (_, index) => ({
       }
     }
 
-    .s__dataset-status {
-      position: absolute;
-      left: 1rem;
-      bottom: 1rem;
-      z-index: 4;
-      max-width: min(28rem, calc(100vw - 2rem));
-      margin: 0;
-      color: color(primary);
-      font: 700 0.72rem / 1.3 font-family(fraktion);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      pointer-events: none;
-
-      @include mq(phone) {
-        right: 0.5rem;
-        left: 0.5rem;
-        bottom: 0.5rem;
-        max-width: none;
-        font-size: 0.62rem;
-      }
-    }
-
     .s__scene {
       --shadow: #{color(shadow)};
       --progress: 0.5;
@@ -1177,3 +1077,4 @@ const works = Array.from({ length: 18 }, (_, index) => ({
     }
   }
 </style>
+

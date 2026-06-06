@@ -26,12 +26,6 @@ describe('state', () => {
     expect(state.figureStatus).toBe('idle')
   })
 
-  it('should track the two-step figure upload flow', () => {
-    expect(state.figureUploadStatus).toBe('idle')
-    expect(state.figureSourceUrl).toBe('')
-    expect(Array.isArray(state.figures)).toBe(true)
-  })
-
   it('should have empty clothCatalog array', () => {
     expect(Array.isArray(state.clothCatalog)).toBe(true)
     expect(state.clothCatalog).toHaveLength(0)
@@ -44,11 +38,6 @@ describe('state', () => {
   it('should have empty selectedClothIds array', () => {
     expect(Array.isArray(state.selectedClothIds)).toBe(true)
     expect(state.selectedClothIds).toHaveLength(0)
-  })
-
-  it('should track cloth details and index status', () => {
-    expect(state.clothDetail).toBeNull()
-    expect(state.clothIndexStatus).toEqual({})
   })
 
   it('should have default wardrobeMode as fallback', () => {
@@ -66,9 +55,6 @@ describe('state', () => {
   it('should have empty historyEntries array', () => {
     expect(Array.isArray(state.historyEntries)).toBe(true)
     expect(state.historyEntries).toHaveLength(0)
-    expect(state.historyMode).toBe('local')
-    expect(state.historyFilter).toBe('all')
-    expect(state.historyStatus).toBe('idle')
   })
 
   it('should have default authMode as login', () => {
@@ -81,7 +67,6 @@ describe('state', () => {
 
   it('should have null authUser', () => {
     expect(state.authUser).toBeNull()
-    expect(state.authVerificationStatus).toBe('idle')
   })
 
   it('should have dashboardOpen as false', () => {
@@ -128,14 +113,5 @@ describe('state', () => {
   it('should have empty historyDistortions array', () => {
     expect(Array.isArray(state.historyDistortions)).toBe(true)
     expect(state.historyDistortions).toHaveLength(0)
-  })
-
-  it('should have local dashboard aggregate defaults', () => {
-    expect(state.dashboardAggregate.source).toBe('local')
-    expect(state.dashboardAggregate.status).toBe('idle')
-    expect(state.dashboardAggregate.histories).toEqual([])
-    expect(state.dashboardAggregate.styles).toEqual([])
-    expect(state.dashboardAggregate.tryons).toEqual([])
-    expect(state.dashboardAggregate.tasks).toEqual([])
   })
 })

@@ -69,12 +69,6 @@ html.am-overlay-open body {
   gap: 0.75rem;
 }
 
-.am-avatar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
 .am-file-status,
 .am-note,
 .am-status {
@@ -128,12 +122,6 @@ html.am-overlay-open body {
 .am-input,
 .am-select {
   box-sizing: border-box;
-}
-
-.am-input--light {
-  border-color: var(--color-secondary, #160000);
-  background: rgba(255, 255, 255, 0.68);
-  color: var(--color-secondary, #160000);
 }
 
 .am-preview-box {
@@ -432,64 +420,6 @@ html.am-overlay-open body {
   gap: 0.75rem;
 }
 
-.am-wardrobe-management {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
-  gap: 1rem;
-  margin: 1rem 0;
-}
-
-.am-cloth-form {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.85rem;
-  padding: 1rem;
-  border: 1px solid var(--color-secondary, #160000);
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.am-cloth-form__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: end;
-  grid-column: 1 / -1;
-}
-
-.am-cloth-detail {
-  min-height: 100%;
-  padding: 1rem;
-  border: 1px solid var(--color-secondary, #160000);
-  background:
-    linear-gradient(180deg, rgba(244, 12, 63, 0.08), transparent 52%),
-    rgba(255, 255, 255, 0.45);
-  font: 400 1rem / 1.45 var(--font-editorial, 'PPEditorialNew', serif);
-}
-
-.am-mini-button {
-  appearance: none;
-  border: 1px solid var(--color-secondary, #160000);
-  background: transparent;
-  color: var(--color-secondary, #160000);
-  cursor: pointer;
-  padding: 0.45rem 0.55rem;
-  font: 700 0.64rem / 1 var(--font-fraktion, 'PPFraktionMono', monospace);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease,
-    color 0.2s ease;
-}
-
-.am-mini-button:hover,
-.am-mini-button:focus-visible {
-  outline: none;
-  transform: translateY(-1px);
-  background: var(--color-secondary, #160000);
-  color: var(--color-primary, #f3ece5);
-}
-
 .am-wardrobe-grid {
   min-height: 18rem;
   padding: 1rem;
@@ -589,15 +519,6 @@ html.am-overlay-open body {
 
 .am-wardrobe-card__cta {
   margin-top: auto;
-}
-
-.am-wardrobe-card__actions,
-.am-history-card__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  width: 100%;
-  margin-top: 0.65rem;
 }
 
 .am-panel--ai {
@@ -1021,18 +942,6 @@ html.am-overlay-open body {
   border-bottom: 1px solid var(--color-secondary, #160000);
 }
 
-.am-history-panel__controls {
-  display: flex;
-  align-items: end;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.am-history-filter {
-  min-width: 12rem;
-}
-
 .am-history-panel__eyebrow,
 .am-history-focus__eyebrow,
 .am-history-card__eyebrow {
@@ -1203,11 +1112,6 @@ html.am-overlay-open body {
     grid-template-columns: 1fr;
   }
 
-  .am-wardrobe-management,
-  .am-cloth-form {
-    grid-template-columns: 1fr;
-  }
-
   .am-styling-toolbar {
     flex-direction: column;
     align-items: stretch;
@@ -1288,10 +1192,6 @@ html.am-overlay-open body {
   .am-history-panel__header {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .am-history-panel__controls {
-    justify-content: stretch;
   }
 
   .am-auth-overlay__tabs {
