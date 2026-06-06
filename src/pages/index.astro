@@ -1,0 +1,967 @@
+---
+import SiteHead from '../components/SiteHead.astro'
+import SiteFoot from '../components/SiteFoot.astro'
+import SHero from '../components/SHero.astro'
+import SAccount from '../components/SAccount.astro'
+import SAbout from '../components/SAbout.astro'
+import SWork from '../components/SWork.astro'
+import SCTA from '../components/SCTA.astro'
+import ASeparator from '../components/ASeparator.astro'
+
+import '../styles/global.scss'
+---
+
+<html lang="en" class="is-scroll-blocked theme-contrasted">
+  <head>
+    <meta charset="utf-8" />
+
+    <title>AuraMirror | AI Smart Wardrobe</title>
+
+    <meta
+      name="description"
+      content="AuraMirror is an AI wardrobe mirror for avatar generation, virtual try-on, smart styling recommendations, and recommendation history." />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://felixzijunliang.github.io/wardrobe/" />
+
+    <link
+      rel="icon"
+      type="image/png"
+      href="/icons/favicon-48x48.png"
+      sizes="48x48"
+    />
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+    <link rel="shortcut icon" href="/icons/favicon.ico" />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/icons/apple-touch-icon.png"
+    />
+    <meta name="apple-mobile-web-app-title" content="AuraMirror" />
+
+    <meta name="theme-color" content="#160000" />
+    <meta name="msapplication-navbutton-color" content="#160000" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="#160000" />
+
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="AuraMirror | AI Smart Wardrobe" />
+    <meta
+      property="og:description"
+      content="Avatar generation, virtual try-on, AI outfit recommendations, and styling history in one experimental wardrobe interface." />
+    <meta property="og:url" content="https://felixzijunliang.github.io/wardrobe/" />
+    <meta property="og:site_name" content="AuraMirror" />
+    <meta property="og:image" content="https://felixzijunliang.github.io/wardrobe/images/aw-creative-developer.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="675" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://felixzijunliang.github.io/wardrobe/images/aw-creative-developer.png" />
+
+    <link
+      rel="preload"
+      href="/fonts/PPEditorialNew-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      href="/fonts/PPEditorialNew-Ultralight.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      href="/fonts/PPFraktionMono-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      href="/fonts/PPFraktionMono-Bold.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      href="/fonts/Bigger-Display.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+  </head>
+
+  <body>
+    <div class="site-wrapper js-site-wrapper" style="opacity: 0;">
+      <SiteHead />
+
+      <SHero />
+
+      <SAccount />
+
+      <SAbout />
+
+      <ASeparator style="secondary" />
+
+      <SWork />
+
+      <ASeparator style="secondary" />
+
+      <SCTA />
+
+      <SiteFoot />
+    </div><!-- .site-wrapper -->
+
+    <div class="site-intro js-intro" aria-hidden="true">
+      <div class="site-intro__orbs js-intro-orbs">
+        <span class="site-intro__orb"></span>
+        <span class="site-intro__orb"></span>
+        <span class="site-intro__orb"></span>
+      </div>
+
+      <div class="site-intro__brand js-intro-brand">
+        <svg
+          class="site-intro__mark js-intro-mark"
+          width="280"
+          height="280"
+          viewBox="0 0 280 280"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            class="js-intro-stroke"
+            d="M240.245 16.8V280h39.75V0h-160V280h39.755V16.8h19.8V280h39.755V16.8h19.8Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+          </path>
+          <path
+            class="js-intro-stroke"
+            d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+          </path>
+          <path
+            class="js-intro-fill"
+            d="M240.245 16.8V280h39.75V0h-160V280h39.755V16.8h19.8V280h39.755V16.8h19.8Z"
+            fill="currentColor"
+          >
+          </path>
+          <path
+            class="js-intro-fill"
+            d="M0 0v280h39.755V16.8H59.65V280h39.756V0H0Z"
+            fill="currentColor"
+          >
+          </path>
+        </svg>
+
+        <div class="site-intro__name" aria-hidden="true">
+          <span class="site-intro__name-piece">
+            <span class="js-intro-name-piece">Aura</span>
+          </span>
+          <span class="site-intro__name-piece">
+            <span class="js-intro-name-piece">Mirror</span>
+          </span>
+        </div>
+      </div><!-- .site-intro__brand -->
+
+      <div class="site-intro__line js-intro-line"></div>
+    </div><!-- .site-intro -->
+
+    <div class="site-mount js-mount"></div>
+    <div class="site-contrast-mask js-contrast-mask"></div>
+  </body>
+
+  <script>
+    import Emitter from '../utils/Emitter'
+    import Ticker from '../utils/Ticker'
+    import { initAuraMirror } from '../auramirror/index.js'
+
+    import Lenis from 'lenis'
+
+    import { gsap } from 'gsap'
+    import { ScrollTrigger } from 'gsap/ScrollTrigger'
+    gsap.registerPlugin(ScrollTrigger)
+
+    declare global {
+      interface Window {
+        safeWidth: number
+        safeHeight: number
+        maxScrollTop: number
+        scrollProgress: number
+        lenis: any
+      }
+    }
+
+    class Site {
+      timeouts: any = {
+        resizeThrottle: null,
+      }
+
+      windowWidth: number
+      windowHeight: number
+      clientWidth: number
+      clientHeight: number
+
+      isScrolling: boolean = false
+
+      lenis: any
+
+      /**
+       * Constructor
+       */
+      constructor() {
+        let os = 'unknown'
+        if (navigator.userAgent.indexOf('Win') !== -1) {
+          os = 'windows'
+        } else if (navigator.userAgent.indexOf('Android') !== -1) {
+          os = 'android'
+        } else if (navigator.userAgent.indexOf('Mac') !== -1) {
+          os = 'mac'
+        } else if (navigator.userAgent.indexOf('Linux') !== -1) {
+          os = 'linux'
+        }
+        document.documentElement.classList.add(`is-${os}`)
+
+        let browser = 'unknown'
+        if (navigator.userAgent.indexOf('Firefox') !== -1) {
+          browser = 'firefox'
+        } else if (navigator.userAgent.indexOf('Chrome') !== -1) {
+          browser = 'chrome'
+        } else if (navigator.userAgent.indexOf('Safari') !== -1) {
+          browser = 'safari'
+        }
+        document.documentElement.classList.add(`is-${browser}`)
+
+        this.bindEvents()
+      }
+
+      /**
+       * Initialization
+       */
+      init() {
+        this.initLenis()
+
+        Ticker.init()
+
+        this.onResize()
+        Ticker.nextTick(this.intro, this)
+      }
+
+      /**
+       * Bind events
+       */
+      bindEvents() {
+        window.addEventListener('resize', this.resizeThrottle.bind(this))
+        window.addEventListener('scroll', this.onScroll.bind(this), {
+          passive: true,
+        })
+        window.addEventListener('mousemove', this.onMouseMove.bind(this), {
+          passive: true,
+        })
+
+        Emitter.on('updateViewport', this.onResize, this, true)
+
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              entry.target.dispatchEvent(
+                new CustomEvent('intersect', {
+                  detail: { isIntersecting: entry.isIntersecting },
+                })
+              )
+
+              if (entry.isIntersecting) {
+                entry.target.classList.add('is-in-view')
+                entry.target.classList.remove(
+                  'is-out-of-view',
+                  'is-out-of-view-top',
+                  'is-out-of-view-bottom'
+                )
+              } else {
+                entry.target.classList.remove('is-in-view')
+                entry.target.classList.add('is-out-of-view')
+
+                entry.target.classList.toggle(
+                  'is-out-of-view-top',
+                  entry.boundingClientRect.top < 0
+                )
+                entry.target.classList.toggle(
+                  'is-out-of-view-bottom',
+                  entry.boundingClientRect.top > 0
+                )
+              }
+            })
+          },
+          {
+            threshold: 0,
+          }
+        )
+
+        document.querySelectorAll('[data-intersect]').forEach((el) => {
+          observer.observe(el)
+        })
+
+        if (document.readyState === 'complete') {
+          this.siteLoaded()
+        } else {
+          window.addEventListener('load', this.siteLoaded, { once: true })
+        }
+
+        this.onScroll()
+      }
+
+      /**
+       * Init lenis
+       */
+      initLenis() {
+        const lenis = new Lenis()
+
+        lenis.on('scroll', ScrollTrigger.update)
+
+        gsap.ticker.add((time) => {
+          lenis.raf(time * 1000)
+        })
+
+        gsap.ticker.lagSmoothing(0)
+
+        window.lenis = lenis
+        this.lenis = lenis
+      }
+
+      /**
+       * Set loaded class
+       */
+      siteLoaded() {
+        document.documentElement.classList.add('is-loaded')
+
+        Emitter.emit('siteLoaded')
+      }
+
+      /**
+       * Resize throttle
+       */
+      resizeThrottle() {
+        clearTimeout(this.timeouts.resizeThrottle)
+
+        this.timeouts.resizeThrottle = setTimeout(() => {
+          Ticker.nextTick(this.onResize, this)
+        }, 200)
+      }
+
+      /**
+       * Resize handler
+       */
+      onResize() {
+        const newWidth = window.innerWidth
+        let widthChanged = false
+        if (this.windowWidth !== newWidth) {
+          if (this.windowWidth !== undefined) {
+            widthChanged = true
+          }
+
+          this.windowWidth = newWidth
+          this.clientWidth = document.body.clientWidth
+        }
+
+        const newHeight = window.innerHeight
+        let heightChanged = false
+        if (this.windowHeight !== newHeight) {
+          if (this.windowHeight !== undefined) {
+            heightChanged = true
+          }
+
+          this.windowHeight = newHeight
+          this.clientHeight = document.body.clientHeight
+        }
+
+        window.safeWidth = newWidth
+        window.safeHeight = newHeight
+
+        window.maxScrollTop = document.body.scrollHeight - window.safeHeight
+
+        this.setScrollProgress()
+
+        Emitter.emit('resize', widthChanged, heightChanged)
+      }
+
+      /**
+       * Scroll handler
+       */
+      onScroll() {
+        this.setScrollProgress()
+
+        Ticker.nextTick(() => {
+          Emitter.emit('scroll', window.scrollY)
+        })
+      }
+
+      /**
+       * Set scroll progress
+       */
+      setScrollProgress() {
+        window.scrollProgress = window.scrollY / window.maxScrollTop
+      }
+
+      /**
+       * Mouse move handler
+       */
+      onMouseMove(e) {
+        Emitter.emit('mousemove', e.clientX, e.clientY)
+      }
+
+      /**
+       * Intro
+       */
+      intro() {
+        const wrapper: HTMLElement = document.querySelector('.js-site-wrapper')
+        const intro: HTMLElement = document.querySelector('.js-intro')
+        const mount: HTMLElement = document.querySelector('.js-mount')
+        const introBrand: HTMLElement = intro?.querySelector('.js-intro-brand')
+        const introNameParts: NodeListOf<HTMLElement> = intro?.querySelectorAll(
+          '.js-intro-name-piece'
+        )
+        const introStrokes: NodeListOf<SVGPathElement> = intro?.querySelectorAll(
+          '.js-intro-stroke'
+        )
+        const introFills: NodeListOf<SVGPathElement> = intro?.querySelectorAll(
+          '.js-intro-fill'
+        )
+        const introLine: HTMLElement = intro?.querySelector('.js-intro-line')
+        const introOrbs: NodeListOf<HTMLElement> = intro?.querySelectorAll(
+          '.site-intro__orb'
+        )
+        const targetBrand: HTMLElement = document.querySelector('.js-brand-target')
+        const prefersReducedMotion = window.matchMedia(
+          '(prefers-reduced-motion: reduce)'
+        ).matches
+
+        const finalizeIntro = () => {
+          mount.style.opacity = '1'
+          intro.remove()
+
+          document.documentElement.classList.remove('is-scroll-blocked')
+
+          Ticker.nextTick(() => {
+            Emitter.emit('updateViewport')
+          })
+        }
+
+        if (!wrapper || !intro || !mount) {
+          document.dispatchEvent(new CustomEvent('intro'))
+          document.documentElement.classList.remove('is-scroll-blocked')
+          return
+        }
+
+        const tl = gsap.timeline()
+
+        tl.set(wrapper, {
+          opacity: '',
+        })
+
+        if (!introBrand || !targetBrand) {
+          tl.call(() => {
+            document.dispatchEvent(new CustomEvent('intro'))
+          })
+
+          tl.to(intro, {
+            autoAlpha: 0,
+            duration: 0.3,
+            ease: 'power2.out',
+          })
+
+          tl.call(finalizeIntro)
+          return
+        }
+
+        tl.set(targetBrand, {
+          opacity: 0,
+        })
+
+        // Prepare SVG stroke-draw
+        introStrokes.forEach((path) => {
+          const len = path.getTotalLength()
+          gsap.set(path, {
+            strokeDasharray: len,
+            strokeDashoffset: len,
+          })
+        })
+
+        // Hide fills initially
+        gsap.set(introFills, { opacity: 0 })
+
+        const sourceRect = introBrand.getBoundingClientRect()
+        const targetRect = targetBrand.getBoundingClientRect()
+
+        const sourceCenterX = sourceRect.left + sourceRect.width * 0.5
+        const sourceCenterY = sourceRect.top + sourceRect.height * 0.5
+        const targetCenterX = targetRect.left + targetRect.width * 0.5
+        const targetCenterY = targetRect.top + targetRect.height * 0.5
+
+        const deltaX = targetCenterX - sourceCenterX
+        const deltaY = targetCenterY - sourceCenterY
+        const scale = targetRect.width / Math.max(sourceRect.width, 1)
+
+        if (prefersReducedMotion) {
+          tl.set(introBrand, {
+            x: deltaX,
+            y: deltaY,
+            scale,
+          })
+
+          gsap.set(introFills, { opacity: 1 })
+          gsap.set(introStrokes, { opacity: 0 })
+
+          tl.call(() => {
+            targetBrand.style.opacity = '1'
+            document.dispatchEvent(new CustomEvent('intro'))
+          })
+
+          tl.to(intro, {
+            autoAlpha: 0,
+            duration: 0.15,
+            ease: 'none',
+          })
+
+          tl.call(finalizeIntro)
+          return
+        }
+
+        /* ── Phase 1: Ambient orbs fade in ── */
+        tl.fromTo(
+          introOrbs,
+          { autoAlpha: 0, scale: 0.4 },
+          {
+            autoAlpha: 1,
+            scale: 1,
+            duration: 1.6,
+            ease: 'power1.out',
+            stagger: 0.2,
+          },
+          0
+        )
+
+        /* ── Phase 2: SVG stroke-draw reveal ── */
+        tl.to(
+          introStrokes,
+          {
+            strokeDashoffset: 0,
+            duration: 1.4,
+            ease: 'power2.inOut',
+            stagger: 0.15,
+          },
+          0.3
+        )
+
+        /* ── Phase 3: Light sweep triggers stroke→fill + name reveal ── */
+
+        // 3a — Line sweeps in from left
+        if (introLine) {
+          tl.fromTo(
+            introLine,
+            {
+              xPercent: -100,
+              autoAlpha: 0,
+            },
+            {
+              xPercent: -30,
+              autoAlpha: 1,
+              duration: 0.6,
+              ease: 'power2.in',
+            },
+            1.5
+          )
+        }
+
+        // 3b — As line crosses the logo, strokes dissolve and fills appear
+        tl.to(
+          introStrokes,
+          {
+            opacity: 0,
+            duration: 0.5,
+            ease: 'power1.in',
+          },
+          1.8
+        )
+
+        tl.to(
+          introFills,
+          {
+            opacity: 1,
+            duration: 0.6,
+            ease: 'power1.out',
+          },
+          1.8
+        )
+
+        // 3c — Line continues sweeping right, simultaneously name reveals
+        if (introLine) {
+          tl.to(
+            introLine,
+            {
+              xPercent: 0,
+              duration: 0.8,
+              ease: 'power2.out',
+            },
+            2.1
+          )
+        }
+
+        tl.fromTo(
+          introNameParts,
+          {
+            yPercent: 120,
+            opacity: 0,
+            filter: 'blur(8px)',
+          },
+          {
+            yPercent: 0,
+            opacity: 1,
+            filter: 'blur(0px)',
+            duration: 0.9,
+            ease: 'expo.out',
+            stagger: 0.12,
+          },
+          2.15
+        )
+
+        // 3d — Line exits to the right as orbs pulse outward
+        if (introLine) {
+          tl.to(
+            introLine,
+            {
+              xPercent: 100,
+              autoAlpha: 0,
+              duration: 0.7,
+              ease: 'power2.in',
+            },
+            2.9
+          )
+        }
+
+        tl.to(
+          introOrbs,
+          {
+            scale: 1.2,
+            duration: 0.7,
+            ease: 'power1.out',
+          },
+          2.9
+        )
+
+        /* ── Phase 4: Hold, then brand morphs to header ── */
+        tl.to(
+          introOrbs,
+          {
+            autoAlpha: 0,
+            scale: 1.5,
+            duration: 0.8,
+            ease: 'power1.in',
+            stagger: 0.05,
+          },
+          3.4
+        )
+
+        tl.to(
+          introBrand,
+          {
+            x: deltaX,
+            y: deltaY,
+            scale,
+            duration: 1.4,
+            ease: 'expo.inOut',
+          },
+          3.8
+        )
+
+        /* ── Phase 5: Smooth crossfade to page ── */
+        tl.to(
+          intro,
+          {
+            backgroundColor: 'transparent',
+            duration: 0.8,
+            ease: 'power2.inOut',
+          },
+          4.2
+        )
+
+        tl.call(
+          () => {
+            document.dispatchEvent(new CustomEvent('intro'))
+          },
+          null,
+          4.5
+        )
+
+        tl.call(
+          () => {
+            targetBrand.style.opacity = '1'
+          },
+          null,
+          4.8
+        )
+
+        tl.to(
+          introBrand,
+          {
+            autoAlpha: 0,
+            duration: 0.3,
+            ease: 'power2.out',
+          },
+          4.8
+        )
+
+        tl.to(
+          intro,
+          {
+            autoAlpha: 0,
+            duration: 0.35,
+            ease: 'power2.out',
+          },
+          4.9
+        )
+
+        tl.call(finalizeIntro, null, 5.25)
+      }
+    }
+
+    const site = new Site()
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => site.init(), { once: true })
+    } else {
+      site.init()
+    }
+
+    initAuraMirror()
+  </script>
+
+  <style lang="scss">
+    body {
+      position: relative;
+
+      padding: 1rem;
+      min-height: 100vh;
+
+      @include mq(phone) {
+        padding: 0.5rem;
+      }
+    }
+
+    .site-contrast-mask {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 20;
+
+      width: 100%;
+      height: 100%;
+
+      background: map.get($theme-colors, 'default', 'primary');
+      border-color: map.get($theme-colors, 'default', 'secondary');
+      border-style: solid;
+      border-width: 0 1rem 0 0;
+      mix-blend-mode: darken;
+      transform: translate3d(-100%, 0, 0);
+
+      pointer-events: none;
+      will-change: transform;
+
+      @include mq(phone) {
+        border-right-width: 0.5rem;
+      }
+    }
+
+    .site-intro {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: grid;
+      place-items: center;
+      background: #000;
+      overflow: hidden;
+
+      .site-intro__orbs {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .site-intro__orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        will-change: transform, opacity;
+
+        &:nth-child(1) {
+          width: min(50vw, 28rem);
+          height: min(50vw, 28rem);
+          top: 20%;
+          left: 15%;
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.07) 0%, transparent 70%);
+        }
+
+        &:nth-child(2) {
+          width: min(40vw, 22rem);
+          height: min(40vw, 22rem);
+          bottom: 20%;
+          right: 15%;
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+        }
+
+        &:nth-child(3) {
+          width: min(30vw, 16rem);
+          height: min(30vw, 16rem);
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.09) 0%, transparent 65%);
+        }
+      }
+
+      .site-intro__brand {
+        position: relative;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: clamp(0.8rem, 1.6vw, 1.35rem);
+
+        color: #fff;
+
+        will-change: transform, opacity, color;
+      }
+
+      .site-intro__mark {
+        display: block;
+
+        width: clamp(2.25rem, 5.2vw, 4.2rem);
+        height: auto;
+
+        color: currentColor;
+        flex-shrink: 0;
+      }
+
+      .site-intro__name {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        white-space: nowrap;
+        transform: translateY(0.06em);
+
+        font: 700 clamp(2rem, 6vw, 5rem) / 1.1 font-family(bigger);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .site-intro__name-piece {
+        display: block;
+        overflow: hidden;
+        padding-block: 0.08em;
+
+        > span {
+          display: block;
+          will-change: transform, opacity, filter;
+        }
+      }
+
+      .site-intro__line {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        z-index: 3;
+        transform: translateY(-50%);
+        transform-origin: left center;
+
+        width: 100%;
+        height: 2px;
+
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.3) 15%,
+          rgba(255, 255, 255, 0.9) 45%,
+          #fff 50%,
+          rgba(255, 255, 255, 0.9) 55%,
+          rgba(255, 255, 255, 0.3) 85%,
+          transparent 100%
+        );
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      @include mq(phone) {
+        .site-intro__brand {
+          gap: 0.55rem;
+        }
+
+        .site-intro__name {
+          gap: 0.25rem;
+          font-size: clamp(1.35rem, 7vw, 2rem);
+          letter-spacing: 0.03em;
+        }
+
+        .site-intro__orb {
+          filter: blur(60px);
+
+          &:nth-child(1) {
+            width: min(60vw, 16rem);
+            height: min(60vw, 16rem);
+          }
+
+          &:nth-child(2) {
+            width: min(50vw, 14rem);
+            height: min(50vw, 14rem);
+          }
+
+          &:nth-child(3) {
+            width: min(40vw, 10rem);
+            height: min(40vw, 10rem);
+          }
+        }
+      }
+    }
+
+    .site-wrapper {
+      position: relative;
+      z-index: 2;
+
+      background: color(primary);
+      clip-path: inset(0 -1rem);
+
+      @include mq(phone) {
+        clip-path: inset(0 -0.5rem);
+      }
+    }
+
+    :global(html.am-dashboard-mode) {
+      overflow: hidden;
+    }
+
+    .site-mount {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+
+      width: 100%;
+      height: 100%;
+
+      border: 1rem solid color(secondary);
+
+      opacity: 0;
+      will-change: border-width;
+
+      pointer-events: none;
+    }
+  </style>
+</html>

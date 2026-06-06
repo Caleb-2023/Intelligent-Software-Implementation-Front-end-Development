@@ -1,0 +1,28 @@
+{
+  "name": "public.wodniack.dev",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "astro": "^5.7.13",
+    "autoprefixer": "^10.4.21",
+    "gsap": "^3.13.0",
+    "lenis": "^1.3.3",
+    "modern-normalize": "^3.0.1",
+    "sass": "^1.89.0"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.9.0",
+    "jsdom": "^27.0.1",
+    "vitest": "^4.1.7"
+  }
+}
