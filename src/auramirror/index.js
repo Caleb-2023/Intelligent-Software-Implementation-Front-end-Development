@@ -12,6 +12,20 @@ import {
   STORAGE_KEYS,
   WEATHER_API_BASE_URL,
 } from './config'
+import {
+  AuraMirrorApiError,
+  apiRequest,
+  endpoints,
+  normalizeClothRecord,
+  normalizeHistoryRecord,
+  normalizeServerUser,
+  normalizeStyleRecord,
+  normalizeTaskRecord,
+  normalizeTryOnRecord,
+  pickFirstArray,
+  pickFirstObject,
+  unwrapData,
+} from './api'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -96,13 +110,14 @@ function saveStoredUsers(users) {
 }
 
 function normalizeAuthUser(user) {
-  if (!user || typeof user !== 'object') return null
+  const normalized = normalizeServerUser(user)
+  if (!normalized) return null
 
   return {
-    id: String(user.id || `local-user-${String(user.email || '').toLowerCase()}`),
-    name: String(user.name || 'Aura Member'),
-    email: String(user.email || ''),
-    createdAt: Number(user.createdAt || Date.now()),
+    ...normalized,
+    id:
+      normalized.id ||
+      `local-user-${String(normalized.email || '').toLowerCase()}`,
   }
 }
 
@@ -190,20 +205,18 @@ function updateDashboardScene(isDashboardMode) {
 }
 
 function normalizeCloth(item) {
-  return {
-    _id: String(item?._id || item?.id || ''),
-    category: String(item?.category || 'misc'),
-    name: String(item?.name || 'Unnamed garment'),
-    imageUrl: String(item?.image_url || item?.imageUrl || ''),
+  return normalizeClothRecord(item) || {
+    _id: '',
+    category: 'misc',
+    name: 'Unnamed garment',
+    imageUrl: '',
+    indexed: null,
     attributes: {
-      color: String(item?.attributes?.color || 'unknown'),
-      material: String(item?.attributes?.material || 'unspecified'),
-      season: Array.isArray(item?.attributes?.season)
-        ? item.attributes.season.map(String)
-        : [],
-      occasion: Array.isArray(item?.attributes?.occasion)
-        ? item.attributes.occasion.map(String)
-        : [],
+      color: 'unknown',
+      material: 'unspecified',
+      season: [],
+      occasion: [],
+      tags: [],
     },
   }
 }
@@ -213,6 +226,17 @@ function rebuildClothLookup(items) {
     acc[item._id] = item
     return acc
   }, {})
+}
+
+function dispatchWardrobeUpdated() {
+  document.dispatchEvent(
+    new CustomEvent('am:wardrobe-updated', {
+      detail: {
+        items: state.clothCatalog,
+        mode: state.wardrobeMode,
+      },
+    })
+  )
 }
 
 function updatePhotoStatus(text) {
@@ -758,48 +782,39 @@ async function requestRemoteRecommendation() {
   }
 
   const context = buildRecommendationContext()
-  const weatherStr = context.city
-    ? `${context.city} ${context.temperatureC || ''}°C ${context.weatherLabel || ''}`
-    : ''
 
-  // Step 1: Submit async recommendation task
-  const response = await fetch(API_ENDPOINTS.recommendations, {
+  const payload = await apiRequest(API_ENDPOINTS.recommendations, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+    token,
+    body: {
       figure_id: state.figureId,
       occasion: state.selections.occasion || context.occasion || '',
-      weather: weatherStr,
-      style: '',
-      gender: '',
-    }),
+      weather: {
+        temperature: context.temperatureC,
+        condition: context.weatherLabel,
+        city: context.city,
+        humidity: context.humidity,
+      },
+      style_preference: '',
+      selected_cloth_ids: state.selectedClothIds,
+      top_k: 20,
+      need_visual_preview: true,
+    },
   })
 
-  if (!response.ok) {
-    throw new Error(`Recommendation request failed (${response.status})`)
-  }
-
-  const payload = await response.json().catch(() => null)
-  if (!payload?.success) {
-    throw new Error(payload?.message || 'Recommendation request failed')
-  }
-
-  const taskId = payload?.data?.task_id
+  const data = unwrapData(payload)
+  const taskId = String(data.task_id || payload.task_id || '')
   if (!taskId) {
     throw new Error('No task_id returned from recommendation request')
   }
 
-  // Step 2: Poll task status
   const taskResult = await pollTaskStatus(taskId, (data) => {
     const elapsed = Math.round(data.elapsed_seconds || 0)
     updateAiStatus(`AI recommendation processing... ${data.progress || 'working'} (${elapsed}s)`)
   })
 
-  // Step 3: Parse result
-  const outfits = taskResult.result?.outfits || []
+  const result = taskResult.result || taskResult
+  const outfits = result.outfits || result.recommendations || []
   const bestOutfit = outfits[0] || {}
   const cloths = getSelectedCloths()
 
@@ -825,6 +840,7 @@ async function requestRemoteRecommendation() {
       : ['AI recommendation completed'],
     imageUrl: bestOutfit.image_url || '',
     scores: bestOutfit.scores || {},
+    styleId: String(result.style_id || data.style_id || ''),
   }
 }
 
@@ -836,24 +852,27 @@ async function requestLogin(credentials) {
     throw new Error('Email and password are required.')
   }
 
-  const resp = await fetch(API_ENDPOINTS.authLogin, {
+  const payload = await apiRequest(API_ENDPOINTS.authLogin, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mail: email, password }),
+    body: { email, mail: email, password },
   })
-  const json = await resp.json()
-  if (!resp.ok || !json.success) {
-    throw new Error(json.message || 'Login failed')
-  }
+  const data = unwrapData(payload)
+  const user =
+    normalizeAuthUser(pickFirstObject(payload, ['user', 'profile', 'account'])) ||
+    normalizeAuthUser({ email })
 
-  const data = json.data || {}
-  const user = normalizeAuthUser({
-    id: data.user?._id,
-    name: data.user?.name,
-    email: data.user?.mail,
-    createdAt: data.user?.date_create ? new Date(data.user.date_create).getTime() : Date.now(),
-  })
-  return { token: data.token, user }
+  return {
+    token: String(
+      data.token ||
+        data.access_token ||
+        data.accessToken ||
+        data.jwt ||
+        payload.token ||
+        payload.access_token ||
+        ''
+    ),
+    user,
+  }
 }
 
 async function requestRegister(payloadInput) {
@@ -869,45 +888,195 @@ async function requestRegister(payloadInput) {
     throw new Error('Password must be at least 6 characters.')
   }
 
-  const resp = await fetch(API_ENDPOINTS.authRegister, {
+  const payload = await apiRequest(API_ENDPOINTS.authRegister, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, mail: email, password }),
+    body: { username: name, name, email, mail: email, password },
   })
-  const json = await resp.json()
-  if (!resp.ok || !json.success) {
-    throw new Error(json.message || 'Registration failed')
-  }
+  const data = unwrapData(payload)
+  const user =
+    normalizeAuthUser(pickFirstObject(payload, ['user', 'profile', 'account'])) ||
+    normalizeAuthUser({ name, email })
 
-  const data = json.data || {}
-  const user = normalizeAuthUser({
-    id: data.user?._id,
-    name: data.user?.name,
-    email: data.user?.mail,
-    createdAt: data.user?.date_create ? new Date(data.user.date_create).getTime() : Date.now(),
-  })
-  return { token: data.token, user }
+  return {
+    token: String(
+      data.token ||
+        data.access_token ||
+        data.accessToken ||
+        data.jwt ||
+        payload.token ||
+        payload.access_token ||
+        ''
+    ),
+    user,
+  }
 }
 
 function applyAuthenticatedSession({ token, user }) {
   state.authToken = token
   state.authUser = normalizeAuthUser(user)
+  state.authVerificationStatus = 'verified'
   state.dashboardOpen = false
   setStoredAuth(token, state.authUser)
   updateAuthNavigation()
   updateAccountDashboard()
 }
 
+async function restoreAuthenticatedSession() {
+  const token = getApiToken()
+  const storedUser = normalizeAuthUser(getStoredAuthUser())
+
+  if (!token) {
+    state.authVerificationStatus = 'idle'
+    updateAuthNavigation()
+    updateAccountDashboard()
+    return
+  }
+
+  state.authToken = token
+  state.authUser = storedUser
+  state.authVerificationStatus = 'checking'
+  updateAuthNavigation()
+  updateAccountDashboard()
+
+  try {
+    const payload = await apiRequest(endpoints.authMe, { token })
+    const user = normalizeAuthUser(
+      pickFirstObject(payload, ['user', 'profile', 'account'])
+    )
+
+    if (!user) {
+      throw new Error('Current user response was empty.')
+    }
+
+    applyAuthenticatedSession({ token, user })
+    updateAuthStatus(`Session restored for ${user.name || user.email}.`)
+    await Promise.allSettled([
+      loadWardrobeCatalog({ force: true }),
+      loadRemoteHistoryEntries({ force: true }),
+      loadDashboardAggregate({ force: true }),
+    ])
+  } catch (error) {
+    state.authVerificationStatus =
+      error instanceof AuraMirrorApiError && [401, 403].includes(error.status)
+        ? 'expired'
+        : 'unverified'
+
+    if (state.authVerificationStatus === 'expired') {
+      state.authToken = ''
+      state.authUser = null
+      setStoredAuth('', null)
+      updateAuthStatus('Session expired. Please sign in again.')
+    } else {
+      updateAuthStatus(
+        `Could not verify saved session: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`
+      )
+    }
+
+    updateAuthNavigation()
+    updateAccountDashboard()
+  }
+}
+
 async function signOutAndResetWardrobe() {
   state.authToken = ''
   state.authUser = null
+  state.authVerificationStatus = 'idle'
   state.dashboardOpen = false
+  state.dashboardAggregate = {
+    ...state.dashboardAggregate,
+    source: 'local',
+    status: 'idle',
+    error: '',
+    histories: [],
+    styles: [],
+    tryons: [],
+    tasks: [],
+    lastSyncedAt: 0,
+  }
   setStoredAuth('', null)
   updateAuthNavigation()
   updateAccountDashboard()
   updateWardrobeStatus('Signed out. Demo garments restored for local preview.')
 
   await loadWardrobeCatalog({ force: true })
+}
+
+async function loadDashboardAggregate({ force = false } = {}) {
+  const token = getApiToken()
+
+  if (!token) {
+    state.dashboardAggregate = {
+      ...state.dashboardAggregate,
+      source: 'local',
+      status: 'idle',
+      error: '',
+      histories: [],
+      styles: [],
+      tryons: [],
+      tasks: [],
+      lastSyncedAt: 0,
+    }
+    updateAccountDashboard()
+    return state.dashboardAggregate
+  }
+
+  if (
+    !force &&
+    state.dashboardAggregate.status === 'ready' &&
+    Date.now() - state.dashboardAggregate.lastSyncedAt < 30 * 1000
+  ) {
+    updateAccountDashboard()
+    return state.dashboardAggregate
+  }
+
+  state.dashboardAggregate = {
+    ...state.dashboardAggregate,
+    source: 'server',
+    status: 'loading',
+    error: '',
+  }
+  updateAccountDashboard()
+
+  try {
+    const [histories, styles, tryons, tasks] = await Promise.all([
+      apiRequest(API_ENDPOINTS.histories, { token }),
+      apiRequest(API_ENDPOINTS.styles, { token }),
+      apiRequest(API_ENDPOINTS.tryons, { token }),
+      apiRequest(API_ENDPOINTS.tasks, { token }),
+    ])
+
+    state.dashboardAggregate = {
+      source: 'server',
+      status: 'ready',
+      error: '',
+      histories: pickFirstArray(histories, ['histories', 'records', 'items', 'results'])
+        .map(normalizeHistoryRecord)
+        .filter(Boolean),
+      styles: pickFirstArray(styles, ['styles', 'recommendations', 'items', 'results'])
+        .map(normalizeStyleRecord)
+        .filter(Boolean),
+      tryons: pickFirstArray(tryons, ['tryons', 'try_on_records', 'items', 'results'])
+        .map(normalizeTryOnRecord)
+        .filter(Boolean),
+      tasks: pickFirstArray(tasks, ['tasks', 'items', 'results'])
+        .map(normalizeTaskRecord)
+        .filter(Boolean),
+      lastSyncedAt: Date.now(),
+    }
+  } catch (error) {
+    state.dashboardAggregate = {
+      ...state.dashboardAggregate,
+      source: 'local',
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Dashboard sync failed.',
+      lastSyncedAt: Date.now(),
+    }
+  }
+
+  updateAccountDashboard()
+  return state.dashboardAggregate
 }
 
 function updateAccountDashboard() {
@@ -919,8 +1088,17 @@ function updateAccountDashboard() {
   const isAuthenticated = Boolean(state.authToken && state.authUser)
   const user = normalizeAuthUser(state.authUser)
   const firstName = user?.name?.split(/\s+/).filter(Boolean)[0] || 'Member'
-  const historyCount = state.historyEntries.length
+  const aggregate = state.dashboardAggregate
+  const hasServerAggregate = aggregate.status === 'ready'
+  const historyCount = hasServerAggregate
+    ? aggregate.histories.length
+    : state.historyEntries.length
+  const remoteTryonCount = hasServerAggregate ? aggregate.tryons.length : 0
+  const remoteTaskCount = hasServerAggregate ? aggregate.tasks.length : 0
+  const remoteStyleCount = hasServerAggregate ? aggregate.styles.length : 0
   const selectedCount = state.selectedClothIds.length
+  const latestServerStyle = aggregate.styles[0] || null
+  const latestTryon = aggregate.tryons[0] || null
   const recommendation = state.lastRecommendation
   const greetingLine1Text =
     isAuthenticated && user
@@ -987,6 +1165,8 @@ function updateAccountDashboard() {
     setText('am-account-email', 'you@example.com')
     setText('am-account-member-since', 'Today')
     setText('am-account-mode', 'Local Demo')
+    setText('am-account-server-sync', 'Local session')
+    setText('am-account-remote-counts', '0 histories / 0 try-ons / 0 tasks')
     setText(
       'am-account-avatar-status',
       state.avatarDataUrl ? 'Avatar ready for preview' : 'Waiting for portrait'
@@ -1021,7 +1201,27 @@ function updateAccountDashboard() {
   setText('am-account-member-since', formatMemberSince(user.createdAt))
   setText(
     'am-account-mode',
-    state.wardrobeMode === 'remote' ? 'Remote Ready' : 'Local Demo'
+    aggregate.status === 'loading'
+      ? 'Syncing'
+      : state.authVerificationStatus === 'unverified'
+        ? 'Saved Session'
+        : state.wardrobeMode === 'remote'
+          ? 'Remote Ready'
+          : 'Local Demo'
+  )
+  setText(
+    'am-account-server-sync',
+    aggregate.status === 'ready'
+      ? `Synced ${new Date(aggregate.lastSyncedAt).toLocaleTimeString()}`
+      : aggregate.status === 'loading'
+        ? 'Syncing server data'
+        : aggregate.status === 'error'
+          ? `Server fallback: ${aggregate.error}`
+          : 'Awaiting sync'
+  )
+  setText(
+    'am-account-remote-counts',
+    `${historyCount} histories / ${remoteStyleCount} styles / ${remoteTryonCount} try-ons / ${remoteTaskCount} tasks`
   )
   setText(
     'am-account-avatar-status',
@@ -1036,7 +1236,11 @@ function updateAccountDashboard() {
   )
   setText(
     'am-account-preview-status',
-    state.avatarDataUrl ? 'Preview pipeline armed' : 'No try-on preview yet'
+    latestTryon
+      ? `${latestTryon.status} try-on available`
+      : state.avatarDataUrl
+        ? 'Preview pipeline armed'
+        : 'No try-on preview yet'
   )
   setText('am-account-history-count', `${historyCount} saved runs`)
   setText(
@@ -1054,7 +1258,9 @@ function updateAccountDashboard() {
   )
   setText(
     'am-account-recommendation',
-    recommendation?.summary ||
+    latestServerStyle?.summary ||
+      latestServerStyle?.headline ||
+      recommendation?.summary ||
       'No recommendation yet. Open AI Stylist to generate your first personalized look.'
   )
 }
@@ -1075,11 +1281,12 @@ function bindAccountDashboard() {
     })
   })
 
-  openDashboard?.addEventListener('click', () => {
+  openDashboard?.addEventListener('click', async () => {
     if (!state.authToken) return
 
     state.dashboardOpen = true
     updateAccountDashboard()
+    await loadDashboardAggregate({ force: true })
   })
 
   closeDashboard?.addEventListener('click', () => {
@@ -1175,50 +1382,20 @@ function saveHistoryEntries(entries) {
 }
 
 function normalizeHistoryEntry(entry) {
-  if (!entry || typeof entry !== 'object') return null
-
-  const id = String(
-    entry.id || `history-${entry.generatedAt || entry.timestamp || Date.now()}`
-  )
-  const headline = String(entry.headline || 'Styling recommendation')
-  const summary = String(entry.summary || '')
-  const rationale = String(entry.rationale || '')
-  const mode = String(entry.mode || 'local')
-  const source = String(entry.source || mode)
-  const generatedAt = Number(entry.generatedAt || entry.timestamp || Date.now())
-  const bulletPoints = Array.isArray(entry.bulletPoints)
-    ? entry.bulletPoints.map(String).slice(0, 4)
-    : []
-  const context = {
-    city: String(entry.context?.city || 'Unknown'),
-    weatherLabel: String(entry.context?.weatherLabel || 'controlled'),
-    temperatureC:
-      entry.context?.temperatureC == null ? null : Number(entry.context.temperatureC),
-    humidity: entry.context?.humidity == null ? null : Number(entry.context.humidity),
-    occasion: String(entry.context?.occasion || 'office'),
-    source: String(entry.context?.source || source),
-  }
-  const cloths = Array.isArray(entry.cloths)
-    ? entry.cloths.map((cloth) => ({
-        _id: String(cloth?._id || cloth?.id || ''),
-        category: String(cloth?.category || 'misc'),
-        name: String(cloth?.name || 'Unnamed garment'),
-      }))
-    : []
-  const previewImage = String(entry.previewImage || '')
+  const normalized = normalizeHistoryRecord(entry)
+  if (!normalized) return null
 
   return {
-    id,
-    headline,
-    summary,
-    rationale,
-    mode,
-    source,
-    generatedAt,
-    bulletPoints,
-    context,
-    cloths,
-    previewImage,
+    ...normalized,
+    id:
+      normalized.id ||
+      `history-${normalized.generatedAt || entry?.timestamp || Date.now()}`,
+    cloths: normalized.cloths.map((cloth) => ({
+      _id: cloth._id,
+      category: cloth.category,
+      name: cloth.name,
+      attributes: cloth.attributes || {},
+    })),
   }
 }
 
@@ -1600,9 +1777,10 @@ function renderHistoryList() {
         : date.toLocaleString()
 
       return `
-        <button
+        <article
           class="am-history-card"
-          type="button"
+          role="button"
+          tabindex="0"
           data-history-id="${escapeHtml(entry.id)}"
         >
           <span class="am-history-card__thumb">
@@ -1628,7 +1806,25 @@ function renderHistoryList() {
           <span class="am-history-card__meta">${clothCount} garment${
             clothCount === 1 ? '' : 's'
           }</span>
-        </button>
+          <span class="am-history-card__actions">
+            <button
+              class="am-mini-button"
+              type="button"
+              data-history-action="detail"
+              data-history-id="${escapeHtml(entry.id)}"
+            >
+              Detail
+            </button>
+            <button
+              class="am-mini-button"
+              type="button"
+              data-history-action="delete"
+              data-history-id="${escapeHtml(entry.id)}"
+            >
+              Delete
+            </button>
+          </span>
+        </article>
       `
     })
     .join('')
@@ -1638,7 +1834,99 @@ function renderHistoryList() {
   setupHistoryScrollFx()
 }
 
-function persistCurrentRecommendation() {
+async function loadRemoteHistoryEntries({ force = false } = {}) {
+  const token = getApiToken()
+  const filter = state.historyFilter === 'all' ? '' : state.historyFilter
+
+  if (!token) {
+    state.historyMode = 'local'
+    state.historyStatus = 'idle'
+    state.historyEntries = readHistoryEntries()
+    renderHistoryList()
+    updateAccountDashboard()
+    return state.historyEntries
+  }
+
+  if (!force && state.historyMode === 'server' && state.historyStatus === 'ready') {
+    renderHistoryList()
+    return state.historyEntries
+  }
+
+  state.historyStatus = 'loading'
+  const list = document.getElementById('am-history-list')
+  if (list) {
+    list.innerHTML = '<div class="am-empty-state">Loading server history...</div>'
+  }
+
+  try {
+    const params = filter ? `?type=${encodeURIComponent(filter)}` : ''
+    const payload = await apiRequest(`${API_ENDPOINTS.histories}${params}`, { token })
+    state.historyEntries = pickFirstArray(payload, ['histories', 'records', 'items', 'results'])
+      .map(normalizeHistoryEntry)
+      .filter(Boolean)
+    state.historyMode = 'server'
+    state.historyStatus = 'ready'
+  } catch (error) {
+    state.historyMode = 'local'
+    state.historyStatus = 'error'
+    state.historyEntries = readHistoryEntries()
+    updatePreviewStageStatus(
+      'History fallback',
+      `Server history unavailable: ${
+        error instanceof Error ? error.message : 'unknown error'
+      }`
+    )
+  }
+
+  renderHistoryList()
+  updateAccountDashboard()
+  return state.historyEntries
+}
+
+async function loadHistoryDetail(historyId) {
+  const localEntry = state.historyEntries.find((item) => item.id === historyId)
+  const token = getApiToken()
+
+  if (!token || state.historyMode !== 'server') {
+    renderHistoryFocus(localEntry || null)
+    return localEntry || null
+  }
+
+  try {
+    const payload = await apiRequest(endpoints.historyDetail(historyId), { token })
+    const entry = normalizeHistoryEntry(
+      pickFirstObject(payload, ['history', 'record', 'item', 'result'])
+    )
+    renderHistoryFocus(entry || localEntry || null)
+    return entry || localEntry || null
+  } catch {
+    renderHistoryFocus(localEntry || null)
+    return localEntry || null
+  }
+}
+
+async function deleteHistoryEntry(historyId) {
+  if (!historyId) return
+
+  const token = getApiToken()
+
+  if (token && state.historyMode === 'server') {
+    await apiRequest(endpoints.historyDetail(historyId), {
+      method: 'DELETE',
+      token,
+    })
+    await loadRemoteHistoryEntries({ force: true })
+    await loadDashboardAggregate({ force: true })
+    return
+  }
+
+  state.historyEntries = state.historyEntries.filter((item) => item.id !== historyId)
+  saveHistoryEntries(state.historyEntries)
+  renderHistoryList()
+  updateAccountDashboard()
+}
+
+async function persistCurrentRecommendation() {
   if (!state.lastRecommendation) return
 
   const entry = normalizeHistoryEntry({
@@ -1648,6 +1936,28 @@ function persistCurrentRecommendation() {
   })
 
   if (!entry) return
+
+  const token = getApiToken()
+  if (token) {
+    try {
+      await apiRequest(API_ENDPOINTS.histories, {
+        method: 'POST',
+        token,
+        body: {
+          type: 'recommendation',
+          style_id: state.lastRecommendation.styleId || null,
+          tryon_id: null,
+          context: state.lastRecommendation.context || {},
+          summary: state.lastRecommendation.summary || '',
+        },
+      })
+      await loadRemoteHistoryEntries({ force: true })
+      await loadDashboardAggregate({ force: true })
+      return
+    } catch {
+      // Keep local fallback below when the history endpoint is unavailable.
+    }
+  }
 
   state.historyEntries = [entry, ...(state.historyEntries || []).filter((item) => item.id !== entry.id)].slice(
     0,
@@ -1668,29 +1978,71 @@ function clearRecommendationHistory() {
 function bindRecommendationHistory() {
   const list = document.getElementById('am-history-list')
   const clearButton = document.getElementById('am-clear-history')
+  const refreshButton = document.getElementById('am-refresh-history')
+  const filterSelect = document.getElementById('am-history-filter')
 
   state.historyEntries = readHistoryEntries()
   renderHistoryList()
   updateAccountDashboard()
+  void loadRemoteHistoryEntries({ force: true })
 
-  list?.addEventListener('mouseover', (event) => {
-    if (!(event.target instanceof Element)) return
-    const button = event.target.closest('[data-history-id]')
-    if (!button) return
-    const entry = state.historyEntries.find(
-      (item) => item.id === button.getAttribute('data-history-id')
-    )
-    renderHistoryFocus(entry || null)
+  filterSelect?.addEventListener('change', (event) => {
+    state.historyFilter = String(event.currentTarget.value || 'all')
+    void loadRemoteHistoryEntries({ force: true })
   })
 
-  list?.addEventListener('focusin', (event) => {
+  refreshButton?.addEventListener('click', () => {
+    void loadRemoteHistoryEntries({ force: true })
+  })
+
+  const handleHistoryPreview = (event) => {
     if (!(event.target instanceof Element)) return
-    const button = event.target.closest('[data-history-id]')
-    if (!button) return
+    if (event.target.closest('[data-history-action]')) return
+    const card = event.target.closest('[data-history-id]')
+    if (!card) return
     const entry = state.historyEntries.find(
-      (item) => item.id === button.getAttribute('data-history-id')
+      (item) => item.id === card.getAttribute('data-history-id')
     )
     renderHistoryFocus(entry || null)
+  }
+
+  list?.addEventListener('mouseover', handleHistoryPreview)
+  list?.addEventListener('focusin', handleHistoryPreview)
+
+  list?.addEventListener('click', async (event) => {
+    if (!(event.target instanceof Element)) return
+    const action = event.target.closest('[data-history-action]')
+    const card = event.target.closest('[data-history-id]')
+    const historyId =
+      action?.getAttribute('data-history-id') ||
+      card?.getAttribute('data-history-id') ||
+      ''
+
+    if (!historyId) return
+
+    if (action?.getAttribute('data-history-action') === 'delete') {
+      event.stopPropagation()
+      await deleteHistoryEntry(historyId)
+      return
+    }
+
+    if (action?.getAttribute('data-history-action') === 'detail') {
+      event.stopPropagation()
+    }
+
+    await loadHistoryDetail(historyId)
+  })
+
+  list?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    if (!(event.target instanceof Element)) return
+    if (event.target.closest('[data-history-action]')) return
+    const card = event.target.closest('[data-history-id]')
+    const historyId = card?.getAttribute('data-history-id') || ''
+    if (!historyId) return
+
+    event.preventDefault()
+    void loadHistoryDetail(historyId)
   })
 
   clearButton?.addEventListener('click', () => {
@@ -1788,7 +2140,11 @@ function bindAuthOverlay() {
       )
       loginForm.reset()
       closeOverlay(authButton)
-      await loadWardrobeCatalog({ force: true })
+      await Promise.allSettled([
+        loadWardrobeCatalog({ force: true }),
+        loadRemoteHistoryEntries({ force: true }),
+        loadDashboardAggregate({ force: true }),
+      ])
     } catch (error) {
       updateAuthStatus(
         `Login failed: ${error instanceof Error ? error.message : 'unknown error'}`
@@ -1818,7 +2174,11 @@ function bindAuthOverlay() {
         )
         registerForm.reset()
         closeOverlay(authButton)
-        await loadWardrobeCatalog({ force: true })
+        await Promise.allSettled([
+          loadWardrobeCatalog({ force: true }),
+          loadRemoteHistoryEntries({ force: true }),
+          loadDashboardAggregate({ force: true }),
+        ])
       } else {
         updateAuthStatus(
           'Registration completed. No token returned, so the session remains signed out.'
@@ -1883,7 +2243,7 @@ async function handleAiRecommendationRequest() {
     'Recommendation ready',
     `${recommendation.mode === 'api' ? 'Remote' : 'Local'} stylist guidance synced to the preview summary`
   )
-  persistCurrentRecommendation()
+  await persistCurrentRecommendation()
 }
 
 function describeWeatherCode(code) {
@@ -2097,7 +2457,15 @@ function renderWardrobeGrid() {
       const isSelected = state.selectedClothIds.includes(item._id)
       const seasons = item.attributes.season.join(' · ') || 'all seasons'
       const occasions = item.attributes.occasion.join(' · ') || 'multi use'
+      const tags = item.attributes.tags?.join(' · ') || ''
       const imageUrl = resolveAssetUrl(item.imageUrl)
+      const indexStatus = state.clothIndexStatus[item._id]
+      const indexed =
+        typeof indexStatus?.indexed === 'boolean'
+          ? indexStatus.indexed
+          : item.indexed
+      const indexLabel =
+        indexed === true ? 'Indexed' : indexed === false ? 'Not indexed' : 'Unknown'
       const imageMarkup = imageUrl
         ? `<span class="am-wardrobe-card__media"><img src="${escapeHtml(
             imageUrl
@@ -2105,9 +2473,10 @@ function renderWardrobeGrid() {
         : ''
 
       return `
-        <button
+        <article
           class="am-wardrobe-card${isSelected ? ' is-selected' : ''}"
-          type="button"
+          role="button"
+          tabindex="0"
           data-cloth-id="${escapeHtml(item._id)}"
           aria-pressed="${isSelected ? 'true' : 'false'}"
         >
@@ -2122,10 +2491,18 @@ function renderWardrobeGrid() {
           )}</span>
           <span class="am-wardrobe-card__meta">Season: ${escapeHtml(seasons)}</span>
           <span class="am-wardrobe-card__meta">Occasion: ${escapeHtml(occasions)}</span>
+          ${tags ? `<span class="am-wardrobe-card__meta">Tags: ${escapeHtml(tags)}</span>` : ''}
+          <span class="am-wardrobe-card__meta">Index: ${escapeHtml(indexLabel)}</span>
           <span class="am-wardrobe-card__cta">${
             isSelected ? 'Selected' : 'Select garment'
           }</span>
-        </button>
+          <span class="am-wardrobe-card__actions">
+            <button class="am-mini-button" type="button" data-cloth-action="detail" data-cloth-id="${escapeHtml(item._id)}">Detail</button>
+            <button class="am-mini-button" type="button" data-cloth-action="edit" data-cloth-id="${escapeHtml(item._id)}">Edit</button>
+            <button class="am-mini-button" type="button" data-cloth-action="index" data-cloth-id="${escapeHtml(item._id)}">Index</button>
+            <button class="am-mini-button" type="button" data-cloth-action="delete" data-cloth-id="${escapeHtml(item._id)}">Delete</button>
+          </span>
+        </article>
       `
     })
     .join('')
@@ -2136,7 +2513,9 @@ function renderWardrobeGrid() {
 function clearAvatarState() {
   state.avatarDataUrl = ''
   state.figureStatus = 'idle'
+  state.figureUploadStatus = 'idle'
   state.figureId = ''
+  state.figureSourceUrl = ''
   state.uploadedPhoto = ''
   state.uploadedPhotoFile = null
   state.uploadedPhotoFingerprint = ''
@@ -2365,29 +2744,18 @@ async function requestRemoteTryOn() {
 
   updatePreviewStageStatus('Submitting try-on', 'Sending request to AI backend...')
 
-  const response = await fetch(API_ENDPOINTS.tryons, {
+  const payload = await apiRequest(API_ENDPOINTS.tryons, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+    token,
+    body: {
       figure_id: state.figureId,
       cloth_ids: state.selectedClothIds,
-    }),
+      prompt: 'generate a try-on style preview',
+    },
   })
 
-  if (!response.ok) {
-    throw new Error(`Try-on request failed (${response.status})`)
-  }
-
-  const payload = await response.json().catch(() => null)
-  if (!payload?.success) {
-    throw new Error(payload?.message || 'Try-on request failed')
-  }
-
-  const data = payload?.data || {}
-  const taskId = data.task_id
+  const data = unwrapData(payload)
+  const taskId = String(data.task_id || '')
   const tryonId = data.tryon_id || data.tryon?._id || ''
 
   if (!taskId) {
@@ -2401,7 +2769,12 @@ async function requestRemoteTryOn() {
     updatePreviewStageStatus('Generating try-on', `AI rendering... ${taskData.progress || 'processing'} (${elapsed}s)`)
   })
 
-  const imageUrl = taskResult.result?.image_url || taskResult.result?.tryon_image_url || ''
+  const imageUrl =
+    taskResult.result?.image_url ||
+    taskResult.result?.result_image_url ||
+    taskResult.result?.tryon_image_url ||
+    taskResult.result_url ||
+    ''
   return { tryon_id: tryonId, image_url: imageUrl }
 }
 
@@ -2411,12 +2784,8 @@ async function pollTaskStatus(taskId, onProgress) {
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise((r) => setTimeout(r, 3000))
     try {
-      const resp = await fetch(`${API_ENDPOINTS.tasks}/${taskId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!resp.ok) continue
-      const json = await resp.json()
-      const data = json.data || {}
+      const payload = await apiRequest(endpoints.taskDetail(taskId), { token })
+      const data = unwrapData(payload)
       if (onProgress) onProgress(data)
       if (data.status === 'completed') return data
       if (data.status === 'failed') throw new Error(data.error || 'Task failed')
@@ -2427,12 +2796,114 @@ async function pollTaskStatus(taskId, onProgress) {
   throw new Error('Task timed out')
 }
 
+function extractTaskId(payload) {
+  const data = unwrapData(payload)
+  return String(data.task_id || data.taskId || payload?.task_id || '')
+}
+
+function extractFigureId(payload) {
+  const data = unwrapData(payload)
+  const figure = pickFirstObject(payload, ['figure'])
+  return String(
+    data.figure_id ||
+      data.figureId ||
+      data.id ||
+      figure._id ||
+      figure.id ||
+      figure.figure_id ||
+      payload?.figure_id ||
+      ''
+  )
+}
+
+function extractAvatarUrl(payload) {
+  const data = unwrapData(payload)
+  const figure = pickFirstObject(payload, ['figure', 'avatar', 'result'])
+  return String(
+    data.avatar_url ||
+      data.avatar_image_url ||
+      data.image_url ||
+      data.result_url ||
+      figure.avatar_url ||
+      figure.avatar_image_url ||
+      figure.image_url ||
+      figure.result_url ||
+      ''
+  )
+}
+
+async function uploadFigureSource() {
+  if (!state.uploadedPhotoFile) {
+    updateFigureStatus('Choose a portrait photo before uploading.')
+    return null
+  }
+
+  const token = getApiToken()
+  if (!token) {
+    updateFigureStatus('Please log in first to upload the portrait source.')
+    return null
+  }
+
+  const formData = new FormData()
+  formData.append('file', state.uploadedPhotoFile)
+  formData.append('name', state.uploadedPhotoFile.name || 'portrait')
+  formData.append('description', 'AuraMirror avatar source portrait')
+
+  state.figureUploadStatus = 'uploading'
+  state.figureStatus = 'source-uploading'
+  updateFigureStatus('Uploading portrait source to the figure library...')
+
+  const payload = await apiRequest(endpoints.figureUpload, {
+    method: 'POST',
+    token,
+    body: formData,
+  })
+  const data = unwrapData(payload)
+  const figure = pickFirstObject(payload, ['figure'])
+  const figureId = extractFigureId(payload)
+
+  if (!figureId) {
+    throw new Error('Figure upload response did not include a figure_id.')
+  }
+
+  state.figureId = figureId
+  state.figureSourceUrl = String(
+    data.image_url ||
+      data.public_url ||
+      figure.image_url ||
+      figure.source_image_url ||
+      figure.public_url ||
+      ''
+  )
+  state.figures = [
+    {
+      id: figureId,
+      imageUrl: state.figureSourceUrl,
+      avatarUrl: '',
+      status: 'uploaded',
+      createdAt: Date.now(),
+    },
+    ...state.figures.filter((item) => item.id !== figureId),
+  ]
+  state.figureUploadStatus = 'uploaded'
+  state.figureStatus = 'uploaded'
+  state.syncedPhotoFingerprint = state.uploadedPhotoFingerprint
+
+  updateFigureStatus(
+    `Portrait uploaded as ${figureId}. Confirm the source, then generate the virtual avatar.`
+  )
+  updateAvatarPreviewState({ hasAvatar: false })
+  updateAccountDashboard()
+
+  return { figureId, data }
+}
+
 async function renderAvatar() {
   const canvas = document.getElementById('am-avatar-canvas')
   if (!canvas) return
 
-  if (!state.uploadedPhotoFile) {
-    updateFigureStatus('Choose a portrait photo before generating the avatar.')
+  if (!state.figureId) {
+    updateFigureStatus('Upload the portrait source first, then generate the avatar.')
     return
   }
 
@@ -2461,44 +2932,57 @@ async function renderAvatar() {
   }
 
   state.figureStatus = 'generating'
-  updateFigureStatus('Uploading portrait and generating AI avatar... Please wait.')
+  updateFigureStatus('Submitting avatar generation task...')
 
-  // Step 1: Upload photo to backend
-  const formData = new FormData()
-  formData.append('file', state.uploadedPhotoFile)
-
-  let taskId, figureId
+  let taskId
+  let directAvatarUrl = ''
   try {
-    const uploadResp = await fetch(API_ENDPOINTS.figures, {
+    const payload = await apiRequest(endpoints.figureGenerateAvatar(state.figureId), {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
+      token,
+      body: {
+        prompt: 'generate a clean fashion avatar',
+        style: 'realistic',
+      },
     })
-    const uploadJson = await uploadResp.json()
-    if (!uploadResp.ok || !uploadJson.success) {
-      throw new Error(uploadJson.message || 'Upload failed')
+
+    taskId = extractTaskId(payload)
+    directAvatarUrl = extractAvatarUrl(payload)
+    if (!taskId && !directAvatarUrl) {
+      throw new Error('Avatar generation response did not include a task_id.')
     }
-    taskId = uploadJson.data?.task_id
-    figureId = uploadJson.data?.figure?._id
   } catch (err) {
-    state.figureStatus = 'idle'
-    updateFigureStatus(`Upload failed: ${err.message}`)
+    state.figureStatus = 'uploaded'
+    updateFigureStatus(
+      `Avatar generation request failed: ${
+        err instanceof Error ? err.message : 'unknown error'
+      }`
+    )
     throw err
   }
 
-  updateFigureStatus(`AI avatar generating... Task: ${taskId}`)
+  updateFigureStatus(
+    taskId ? `AI avatar generating... Task: ${taskId}` : 'Avatar image returned. Rendering preview...'
+  )
 
-  // Step 2: Poll task status until complete
   try {
-    const result = await pollTaskStatus(taskId, (data) => {
-      const elapsed = Math.round(data.elapsed_seconds || 0)
-      updateFigureStatus(
-        `AI avatar generating... ${data.progress || 'processing'} (${elapsed}s)`
-      )
-    })
+    const result = taskId
+      ? await pollTaskStatus(taskId, (data) => {
+          const elapsed = Math.round(data.elapsed_seconds || 0)
+          updateFigureStatus(
+            `AI avatar generating... ${data.progress || 'processing'} (${elapsed}s)`
+          )
+        })
+      : null
 
-    // Step 3: Load the AI-generated avatar image
-    const avatarUrl = result.result?.avatar_url || result.result?.image_url || ''
+    const avatarUrl =
+      directAvatarUrl ||
+      result?.result?.avatar_url ||
+      result?.result?.image_url ||
+      result?.result?.result_url ||
+      result?.result_url ||
+      result?.resultUrl ||
+      ''
     if (!avatarUrl) {
       throw new Error('No avatar image returned from AI')
     }
@@ -2531,8 +3015,12 @@ async function renderAvatar() {
     ctx.restore()
 
     state.avatarDataUrl = canvas.toDataURL('image/png')
-    state.figureId = figureId || ''
     state.figureStatus = 'ready'
+    state.figures = state.figures.map((figure) =>
+      figure.id === state.figureId
+        ? { ...figure, avatarUrl, status: 'ready' }
+        : figure
+    )
 
     updateAvatarPreviewState({ hasAvatar: true })
     updateFigureStatus('AI avatar generated successfully!')
@@ -2544,8 +3032,12 @@ async function renderAvatar() {
       })
     )
   } catch (err) {
-    state.figureStatus = 'idle'
-    updateFigureStatus(`AI avatar generation failed: ${err.message}`)
+    state.figureStatus = 'uploaded'
+    updateFigureStatus(
+      `AI avatar generation failed: ${
+        err instanceof Error ? err.message : 'unknown error'
+      }`
+    )
     throw err
   }
 }
@@ -2619,19 +3111,7 @@ async function handleTryOnRequest(closeOverlay) {
 }
 
 function getClothItemsFromPayload(payload) {
-  if (Array.isArray(payload?.data?.cloths)) {
-    return payload.data.cloths
-  }
-
-  if (Array.isArray(payload?.data)) {
-    return payload.data
-  }
-
-  if (Array.isArray(payload?.cloths)) {
-    return payload.cloths
-  }
-
-  return []
+  return pickFirstArray(payload, ['cloths', 'garments', 'items', 'results'])
 }
 
 function validateClothImageFile(file) {
@@ -2694,23 +3174,55 @@ async function smartUploadCloth(file) {
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await fetch(API_ENDPOINTS.clothSmartUpload, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  })
+  try {
+    const payload = await apiRequest(API_ENDPOINTS.clothSmartUpload, {
+      method: 'POST',
+      token,
+      body: formData,
+    })
 
-  const payload = await response.json().catch(() => null)
-
-  if (!response.ok || payload?.success === false) {
-    throw new Error(
-      String(payload?.message || payload?.error || `Smart upload failed (${response.status})`)
-    )
+    return payload?.data || payload || {}
+  } catch (error) {
+    if (error instanceof AuraMirrorApiError && error.status !== 404) {
+      throw error
+    }
   }
 
-  return payload?.data || payload || {}
+  return uploadClothImage(file)
+}
+
+async function syncClothIndexStatuses(items) {
+  const token = getApiToken()
+  if (!token || !items.length) return
+
+  const results = await Promise.allSettled(
+    items.map((item) =>
+      apiRequest(endpoints.clothIndexStatus(item._id), { token })
+    )
+  )
+
+  results.forEach((result, index) => {
+    const clothId = items[index]._id
+    if (!clothId || result.status !== 'fulfilled') return
+
+    const data = unwrapData(result.value)
+    const indexed =
+      typeof data.indexed === 'boolean'
+        ? data.indexed
+        : typeof data.status === 'string'
+          ? data.status === 'indexed' || data.status === 'completed'
+          : null
+
+    state.clothIndexStatus[clothId] = {
+      indexed,
+      indexedAt: data.indexed_at || data.indexedAt || '',
+      status: String(data.status || (indexed ? 'indexed' : 'not indexed')),
+    }
+
+    if (state.clothLookup[clothId]) {
+      state.clothLookup[clothId].indexed = indexed
+    }
+  })
 }
 
 async function loadWardrobeCatalog({ force = false } = {}) {
@@ -2722,6 +3234,7 @@ async function loadWardrobeCatalog({ force = false } = {}) {
     (state.wardrobeMode === 'remote' || !token)
   ) {
     renderWardrobeGrid()
+    dispatchWardrobeUpdated()
     return
   }
 
@@ -2736,23 +3249,14 @@ async function loadWardrobeCatalog({ force = false } = {}) {
       `JWT missing. Demo wardrobe loaded. Set localStorage["${STORAGE_KEYS.apiToken}"] for live garments.`
     )
     renderWardrobeGrid()
+    dispatchWardrobeUpdated()
     return
   }
 
   updateWardrobeStatus('Loading wardrobe garments...')
 
   try {
-    const response = await fetch(API_ENDPOINTS.cloths, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Wardrobe request failed (${response.status})`)
-    }
-
-    const payload = await response.json().catch(() => null)
+    const payload = await apiRequest(API_ENDPOINTS.cloths, { token })
     const cloths = getClothItemsFromPayload(payload)
       .map(normalizeCloth)
       .filter((item) => item._id)
@@ -2768,6 +3272,7 @@ async function loadWardrobeCatalog({ force = false } = {}) {
         'Wardrobe is empty. Demo garments loaded for local preview.'
       )
       renderWardrobeGrid()
+      dispatchWardrobeUpdated()
       return
     }
 
@@ -2775,8 +3280,10 @@ async function loadWardrobeCatalog({ force = false } = {}) {
     rebuildClothLookup(cloths)
     state.wardrobeMode = 'remote'
     state.selectedClothIds = state.selectedClothIds.filter((id) => state.clothLookup[id])
+    await syncClothIndexStatuses(cloths)
     updateWardrobeStatus(`${cloths.length} live garments loaded from the wardrobe API.`)
     renderWardrobeGrid()
+    dispatchWardrobeUpdated()
   } catch (error) {
     const fallbackItems = FALLBACK_CLOTHS.map(normalizeCloth)
     state.clothCatalog = fallbackItems
@@ -2788,6 +3295,7 @@ async function loadWardrobeCatalog({ force = false } = {}) {
       `Wardrobe API unavailable. Demo garments loaded: ${error.message}`
     )
     renderWardrobeGrid()
+    dispatchWardrobeUpdated()
   }
 }
 
@@ -2820,9 +3328,10 @@ function toggleClothSelection(clothId) {
 function bindAvatarStudio() {
   const photoInput = document.getElementById('am-photo-input')
   const photoTrigger = document.getElementById('am-photo-trigger')
+  const uploadButton = document.getElementById('am-upload-figure')
   const avatarButton = document.getElementById('am-generate-avatar')
 
-  if (!photoInput || !photoTrigger || !avatarButton) {
+  if (!photoInput || !photoTrigger || !uploadButton || !avatarButton) {
     return
   }
 
@@ -2843,11 +3352,13 @@ function bindAvatarStudio() {
     state.uploadedPhotoFingerprint = `${file.name}:${file.size}:${file.lastModified}`
     state.syncedPhotoFingerprint = ''
     state.figureId = ''
+    state.figureSourceUrl = ''
+    state.figureUploadStatus = 'source-loaded'
     state.figureStatus = 'source-loaded'
 
     updatePhotoStatus(file.name)
     updateFigureStatus(
-      'Portrait loaded. Generate the virtual avatar when you are ready.'
+      'Portrait loaded. Upload it first, then generate the virtual avatar.'
     )
     updateAvatarPreviewState({ hasAvatar: false })
 
@@ -2858,14 +3369,230 @@ function bindAvatarStudio() {
     reader.readAsDataURL(file)
   })
 
-  avatarButton.addEventListener('click', async () => {
+  uploadButton.addEventListener('click', async () => {
     try {
-      await renderAvatar()
-    } catch {
-      updateFigureStatus('Avatar generation failed. Try another portrait photo.')
-      window.alert('Avatar generation failed. Try another photo.')
+      uploadButton.disabled = true
+      await uploadFigureSource()
+    } catch (error) {
+      updateFigureStatus(
+        `Portrait upload failed: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`
+      )
+      window.alert('Portrait upload failed. Check the API session and try again.')
+    } finally {
+      uploadButton.disabled = false
     }
   })
+
+  avatarButton.addEventListener('click', async () => {
+    try {
+      avatarButton.disabled = true
+      await renderAvatar()
+    } catch (error) {
+      updateFigureStatus(
+        `Avatar generation failed: ${
+          error instanceof Error ? error.message : 'Try another portrait photo.'
+        }`
+      )
+      window.alert('Avatar generation failed. Try another photo.')
+    } finally {
+      avatarButton.disabled = false
+    }
+  })
+}
+
+function parseCsvInput(value) {
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function getClothFormPayload(form) {
+  const formData = new FormData(form)
+  const season = parseCsvInput(formData.get('season'))
+  const tags = parseCsvInput(formData.get('tags'))
+
+  return {
+    name: String(formData.get('name') || '').trim(),
+    category: String(formData.get('category') || 'misc'),
+    color: String(formData.get('color') || '').trim(),
+    material: String(formData.get('material') || '').trim(),
+    season,
+    tags,
+    attributes: {
+      color: String(formData.get('color') || '').trim(),
+      material: String(formData.get('material') || '').trim(),
+      season,
+      tags,
+    },
+  }
+}
+
+function resetClothForm() {
+  const form = document.getElementById('am-cloth-form')
+  const clothId = document.getElementById('am-cloth-id')
+  const detail = document.getElementById('am-cloth-detail')
+
+  form?.reset()
+  if (clothId) clothId.value = ''
+  if (detail) {
+    detail.innerHTML = 'Select a garment to view server details and index status.'
+  }
+}
+
+function populateClothForm(item) {
+  if (!item) return
+
+  const setValue = (id, value) => {
+    const node = document.getElementById(id)
+    if (node) node.value = value
+  }
+
+  setValue('am-cloth-id', item._id)
+  setValue('am-cloth-name', item.name)
+  setValue('am-cloth-category', item.category)
+  setValue('am-cloth-color', item.attributes?.color || '')
+  setValue('am-cloth-material', item.attributes?.material || '')
+  setValue('am-cloth-season', item.attributes?.season?.join(', ') || '')
+  setValue('am-cloth-tags', item.attributes?.tags?.join(', ') || '')
+}
+
+function renderClothDetail(item, detail = null) {
+  const panel = document.getElementById('am-cloth-detail')
+  if (!panel || !item) return
+
+  const source = detail || item
+  const merged = {
+    ...item,
+    ...source,
+    attributes: {
+      ...(item.attributes || {}),
+      ...(source.attributes || {}),
+    },
+  }
+  const indexStatus = state.clothIndexStatus[merged._id]
+  const indexed =
+    typeof indexStatus?.indexed === 'boolean'
+      ? indexStatus.indexed
+      : merged.indexed
+  const indexLabel =
+    indexed === true ? 'Indexed for recall' : indexed === false ? 'Not indexed' : 'Index unknown'
+
+  panel.innerHTML = `
+    <strong>${escapeHtml(merged.name)}</strong><br />
+    ID: ${escapeHtml(merged._id)}<br />
+    Category: ${escapeHtml(merged.category)}<br />
+    Color: ${escapeHtml(merged.attributes?.color || 'unknown')}<br />
+    Material: ${escapeHtml(merged.attributes?.material || 'unspecified')}<br />
+    Season: ${escapeHtml(merged.attributes?.season?.join(', ') || 'not set')}<br />
+    Tags: ${escapeHtml(merged.attributes?.tags?.join(', ') || 'not set')}<br />
+    Index: ${escapeHtml(indexLabel)}<br />
+    ${source.imageUrl ? `Image: ${escapeHtml(source.imageUrl)}<br />` : ''}
+    <br />
+    ${indexed === true
+      ? 'This garment can be recalled by the recommendation index.'
+      : 'Submit indexing so this garment can be recalled by recommendations.'}
+  `
+}
+
+async function fetchClothDetail(clothId) {
+  const token = getApiToken()
+  const fallback = state.clothLookup[clothId]
+  if (!clothId || !fallback) return null
+
+  if (!token || state.wardrobeMode !== 'remote') {
+    renderClothDetail(fallback)
+    return fallback
+  }
+
+  try {
+    const payload = await apiRequest(endpoints.clothDetail(clothId), { token })
+    const detail = normalizeCloth(
+      pickFirstObject(payload, ['cloth', 'garment', 'item', 'record', 'result'])
+    )
+    state.clothDetail = detail
+    if (detail?._id) {
+      state.clothLookup[detail._id] = {
+        ...fallback,
+        ...detail,
+        attributes: {
+          ...(fallback.attributes || {}),
+          ...(detail.attributes || {}),
+        },
+      }
+    }
+    renderClothDetail(fallback, detail)
+    return detail
+  } catch {
+    renderClothDetail(fallback)
+    return fallback
+  }
+}
+
+async function saveClothRecord(form) {
+  const token = getApiToken()
+  if (!token) {
+    throw new Error('Sign in before creating or editing garments.')
+  }
+
+  const clothId = String(new FormData(form).get('clothId') || '')
+  const body = getClothFormPayload(form)
+
+  if (!body.name) {
+    throw new Error('Garment name is required.')
+  }
+
+  if (clothId) {
+    await apiRequest(endpoints.clothDetail(clothId), {
+      method: 'PUT',
+      token,
+      body,
+    })
+    updateWardrobeStatus(`Updated ${body.name}.`)
+  } else {
+    await apiRequest(API_ENDPOINTS.cloths, {
+      method: 'POST',
+      token,
+      body,
+    })
+    updateWardrobeStatus(`Created ${body.name}.`)
+  }
+
+  resetClothForm()
+  await loadWardrobeCatalog({ force: true })
+}
+
+async function deleteClothRecord(clothId) {
+  const token = getApiToken()
+  if (!token) {
+    throw new Error('Sign in before deleting garments.')
+  }
+
+  await apiRequest(endpoints.clothDetail(clothId), {
+    method: 'DELETE',
+    token,
+  })
+
+  state.selectedClothIds = state.selectedClothIds.filter((id) => id !== clothId)
+  updateWardrobeStatus('Garment deleted from the wardrobe.')
+  await loadWardrobeCatalog({ force: true })
+}
+
+async function submitClothIndex(clothId) {
+  const token = getApiToken()
+  if (!token) {
+    throw new Error('Sign in before submitting garment indexing.')
+  }
+
+  await apiRequest(endpoints.clothIndex(clothId), {
+    method: 'POST',
+    token,
+  })
+  updateWardrobeStatus('Garment indexing task submitted.')
+  await syncClothIndexStatuses([state.clothLookup[clothId]].filter(Boolean))
+  renderWardrobeGrid()
 }
 
 function bindModuleEntryPlaceholder() {
@@ -2879,6 +3606,8 @@ function bindModuleEntryPlaceholder() {
   const uploadInput = document.getElementById('am-upload-cloth-input')
   const aiButton = document.getElementById('am-open-ai-stylist')
   const grid = document.getElementById('am-wardrobe-grid')
+  const clothForm = document.getElementById('am-cloth-form')
+  const newClothButton = document.getElementById('am-new-cloth-record')
 
   if (!trigger) return
 
@@ -2992,11 +3721,82 @@ function bindModuleEntryPlaceholder() {
     }
   })
 
-  grid?.addEventListener('click', (event) => {
+  clothForm?.addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    try {
+      await saveClothRecord(clothForm)
+    } catch (error) {
+      updateWardrobeStatus(
+        `Garment save failed: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`
+      )
+    }
+  })
+
+  newClothButton?.addEventListener('click', resetClothForm)
+
+  grid?.addEventListener('click', async (event) => {
     if (!(event.target instanceof Element)) return
-    const button = event.target.closest('[data-cloth-id]')
-    if (!button) return
-    toggleClothSelection(button.getAttribute('data-cloth-id'))
+    const action = event.target.closest('[data-cloth-action]')
+    const card = event.target.closest('[data-cloth-id]')
+    const clothId =
+      action?.getAttribute('data-cloth-id') ||
+      card?.getAttribute('data-cloth-id') ||
+      ''
+    if (!clothId) return
+
+    const actionType = action?.getAttribute('data-cloth-action') || ''
+
+    try {
+      if (actionType === 'detail') {
+        event.stopPropagation()
+        await fetchClothDetail(clothId)
+        return
+      }
+
+      if (actionType === 'edit') {
+        event.stopPropagation()
+        populateClothForm(state.clothLookup[clothId])
+        await fetchClothDetail(clothId)
+        return
+      }
+
+      if (actionType === 'index') {
+        event.stopPropagation()
+        await submitClothIndex(clothId)
+        return
+      }
+
+      if (actionType === 'delete') {
+        event.stopPropagation()
+        if (window.confirm('Delete this garment from the wardrobe?')) {
+          await deleteClothRecord(clothId)
+        }
+        return
+      }
+
+      toggleClothSelection(clothId)
+    } catch (error) {
+      updateWardrobeStatus(
+        `Wardrobe action failed: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`
+      )
+    }
+  })
+
+  grid?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    if (!(event.target instanceof Element)) return
+    if (event.target.closest('[data-cloth-action]')) return
+    const card = event.target.closest('[data-cloth-id]')
+    const clothId = card?.getAttribute('data-cloth-id') || ''
+    if (!clothId) return
+
+    event.preventDefault()
+    toggleClothSelection(clothId)
   })
 
   return {
@@ -3177,4 +3977,6 @@ export function initAuraMirror() {
   updateAiResultsSummary('Stylist context will appear here after the first panel open.')
   updateSelectionStatus()
   updateAccountDashboard()
+  void restoreAuthenticatedSession()
+  void loadWardrobeCatalog()
 }

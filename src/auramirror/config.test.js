@@ -21,10 +21,19 @@ describe('config', () => {
   describe('API_ENDPOINTS', () => {
     it('should define all required endpoints', () => {
       expect(API_ENDPOINTS.cloths).toBe('/api/cloths')
+      expect(API_ENDPOINTS.clothImageUpload).toBe('/api/cloths/upload')
+      expect(API_ENDPOINTS.clothDetail).toBe('/api/cloths/{clothId}')
+      expect(API_ENDPOINTS.clothIndexStatus).toBe(
+        '/api/index/garments/{clothId}/status'
+      )
       expect(API_ENDPOINTS.tryons).toBe('/api/tryons')
-      expect(API_ENDPOINTS.recommendations).toBe('/api/recommendations')
+      expect(API_ENDPOINTS.recommendations).toBe('/api/styles/ai-recommend')
+      expect(API_ENDPOINTS.styles).toBe('/api/styles')
       expect(API_ENDPOINTS.authLogin).toBe('/api/auth/login')
       expect(API_ENDPOINTS.authRegister).toBe('/api/auth/register')
+      expect(API_ENDPOINTS.authMe).toBe('/api/auth/me')
+      expect(API_ENDPOINTS.figureUpload).toBe('/api/figures/upload')
+      expect(API_ENDPOINTS.histories).toBe('/api/histories')
     })
   })
 

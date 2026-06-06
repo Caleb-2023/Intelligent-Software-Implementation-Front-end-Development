@@ -1,22 +1,3 @@
----
-/**
- * SFeedback.astro — “Feedback” widget (反馈)
- *
- * Event-driven modal (not a page section). Self-contained: own <script>
- * self-initializes; no edits to auramirror/index.js. Shared request logic lives in
- * auramirror/shared/api.js. Styles are `is:global` but namespaced under `am-fb-`.
- *
- * Cross-page contract:
- *   - Opens on `am:open-feedback` ({ targetType, targetId, context }).
- *   - Emits `am:feedback-submitted` ({ targetType, targetId, rating }) on success.
- *
- * Routing is configurable because the doc marks the feedback API as inferred:
- *   - FEEDBACK_MODE 'history' + targetType 'history' → POST /api/histories/{id}/feedback
- *   - otherwise (tryon/style targets) → POST /api/feedback  (target_type/target_id)
- * Adjust the constants in the <script> once the backend route is finalised.
- */
----
-
 <div id="am-fb-root" class="am-fb-overlay" hidden aria-hidden="true">
   <div class="am-fb-overlay__backdrop" data-am-fb-close></div>
 

@@ -1,22 +1,3 @@
----
-/**
- * STryonHistory.astro — “Try-On History” (试穿记录)
- *
- * Self-contained new page: own <script> self-initializes (like SHero/SWork/SCTA),
- * so no edits to auramirror/index.js are required. Shared request logic lives in
- * auramirror/shared/api.js. Styles are `is:global` but every selector is namespaced
- * under the `am-tryh-` prefix so cards rendered via innerHTML still receive styling
- * while staying collision-free with existing `am-*` rules.
- *
- * Detail uses a full-screen image overlay, mirroring the existing am-ai-overlay /
- * am-styling-overlay pattern (backdrop + [data-open] + Escape close). The overlay is
- * moved to <body> on init to escape the .site-wrapper clip-path.
- *
- * Cross-page contract: dispatches `am:open-feedback`
- *   ({ targetType: 'tryon', targetId, context }) so the Feedback widget can open.
- */
----
-
 <section id="am-tryh-section" class="am-tryh-section" data-intersect aria-label="Try-on history">
   <div class="am-tryh-grid" aria-hidden="true">
     <svg class="am-tryh-grid__svg" aria-hidden="true" focusable="false">

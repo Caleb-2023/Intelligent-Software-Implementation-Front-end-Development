@@ -66,14 +66,26 @@ const modules = [
                 <button id="am-photo-trigger" class="am-button" type="button">
                   Choose File
                 </button>
+                <span id="am-photo-status" class="am-file-status">No file selected</span>
               </div>
 
-              <button id="am-generate-avatar" class="am-button" type="button">
-                Generate Virtual Avatar
-              </button>
+              <div class="am-avatar-actions">
+                <button id="am-upload-figure" class="am-button" type="button">
+                  Upload Portrait
+                </button>
+
+                <button id="am-generate-avatar" class="am-button" type="button">
+                  Generate Virtual Avatar
+                </button>
+              </div>
+
+              <p id="am-figure-status" class="am-status">
+                Upload a portrait to begin the Avatar Studio pipeline.
+              </p>
 
               <p class="am-note am-note--avatar">
-                Tip: use a frontal portrait photo for cleaner local preview alignment.
+                Step 1 uploads the source image. Step 2 asks the backend to generate
+                the avatar and then follows the async task status.
               </p>
             </div>
 
@@ -257,9 +269,101 @@ const modules = [
               </div>
 
               <p class="am-note">
-                Select up to 4 garments. This wardrobe shell is ready, and the next
-                phase will wire in live items and selection behavior.
+                Select up to 4 garments. Use the record panel for JSON create/update,
+                inspect details, delete records, and check whether a garment has been
+                indexed for recommendation recall.
               </p>
+
+              <div class="am-wardrobe-management">
+                <form id="am-cloth-form" class="am-cloth-form">
+                  <input id="am-cloth-id" type="hidden" name="clothId" />
+
+                  <label class="am-label">
+                    Name
+                    <input
+                      id="am-cloth-name"
+                      class="am-input am-input--light"
+                      type="text"
+                      name="name"
+                      placeholder="White linen shirt"
+                      required
+                    />
+                  </label>
+
+                  <label class="am-label">
+                    Category
+                    <select id="am-cloth-category" class="am-select" name="category">
+                      <option value="top">Top</option>
+                      <option value="bottom">Bottom</option>
+                      <option value="shoes">Shoes</option>
+                      <option value="outerwear">Outerwear</option>
+                      <option value="accessory">Accessory</option>
+                      <option value="misc">Misc</option>
+                    </select>
+                  </label>
+
+                  <label class="am-label">
+                    Color
+                    <input
+                      id="am-cloth-color"
+                      class="am-input am-input--light"
+                      type="text"
+                      name="color"
+                      placeholder="white"
+                    />
+                  </label>
+
+                  <label class="am-label">
+                    Material
+                    <input
+                      id="am-cloth-material"
+                      class="am-input am-input--light"
+                      type="text"
+                      name="material"
+                      placeholder="linen"
+                    />
+                  </label>
+
+                  <label class="am-label">
+                    Season
+                    <input
+                      id="am-cloth-season"
+                      class="am-input am-input--light"
+                      type="text"
+                      name="season"
+                      placeholder="spring, summer"
+                    />
+                  </label>
+
+                  <label class="am-label">
+                    Tags
+                    <input
+                      id="am-cloth-tags"
+                      class="am-input am-input--light"
+                      type="text"
+                      name="tags"
+                      placeholder="casual, linen"
+                    />
+                  </label>
+
+                  <div class="am-cloth-form__actions">
+                    <button id="am-save-cloth" class="am-button" type="submit">
+                      Save Garment
+                    </button>
+                    <button
+                      id="am-new-cloth-record"
+                      class="am-button am-button--ghost"
+                      type="button"
+                    >
+                      New Record
+                    </button>
+                  </div>
+                </form>
+
+                <aside id="am-cloth-detail" class="am-cloth-detail">
+                  Select a garment to view server details and index status.
+                </aside>
+              </div>
 
               <div id="am-wardrobe-grid" class="am-wardrobe-grid">
                 <div class="am-empty-state">Wardrobe garments will load here.</div>

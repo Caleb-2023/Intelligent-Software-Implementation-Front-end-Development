@@ -7,14 +7,34 @@
           <h2 class="am-history-panel__title">Saved styling runs</h2>
         </div>
 
-        <button
-          id="am-clear-history"
-          class="am-button am-button--ghost"
-          type="button"
-          aria-label="Clear recommendation history"
-        >
-          Clear History
-        </button>
+        <div class="am-history-panel__controls">
+          <label class="am-label am-history-filter">
+            Type
+            <select id="am-history-filter" class="am-select">
+              <option value="all">All</option>
+              <option value="recommendation">Recommendation</option>
+              <option value="tryon">Try-On</option>
+            </select>
+          </label>
+
+          <button
+            id="am-refresh-history"
+            class="am-button"
+            type="button"
+            aria-label="Refresh recommendation history"
+          >
+            Refresh
+          </button>
+
+          <button
+            id="am-clear-history"
+            class="am-button am-button--ghost"
+            type="button"
+            aria-label="Clear local recommendation history"
+          >
+            Clear Local
+          </button>
+        </div>
       </header>
 
       <div class="am-history-panel__body">

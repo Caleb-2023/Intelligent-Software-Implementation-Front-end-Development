@@ -195,6 +195,27 @@ import '../styles/global.scss'
 
     <div class="site-mount js-mount"></div>
     <div class="site-contrast-mask js-contrast-mask"></div>
+
+    <script is:inline>
+      window.__auraMirrorIntroFallback = window.setTimeout(function () {
+        var root = document.documentElement
+        if (root.dataset.auraIntroComplete === '1') return
+
+        var wrapper = document.querySelector('.js-site-wrapper')
+        var intro = document.querySelector('.js-intro')
+        var mount = document.querySelector('.js-mount')
+
+        if (wrapper) wrapper.style.opacity = ''
+        if (mount) mount.style.opacity = '1'
+        if (intro) intro.remove()
+
+        root.classList.add('is-loaded')
+        root.classList.add('is-intro-fallback')
+        root.classList.remove('is-scroll-blocked')
+        root.dataset.auraIntroComplete = '1'
+        document.dispatchEvent(new CustomEvent('intro'))
+      }, 7000)
+    </script>
   </body>
 
   <script>
@@ -215,6 +236,7 @@ import '../styles/global.scss'
         maxScrollTop: number
         scrollProgress: number
         lenis: any
+        __auraMirrorIntroFallback?: number
       }
     }
 
@@ -231,6 +253,7 @@ import '../styles/global.scss'
       isScrolling: boolean = false
 
       lenis: any
+      introStarted: boolean = false
 
       /**
        * Constructor
@@ -265,12 +288,48 @@ import '../styles/global.scss'
        * Initialization
        */
       init() {
-        this.initLenis()
+        try {
+          this.initLenis()
+        } catch (error) {
+          console.error('Lenis initialization failed', error)
+        }
 
-        Ticker.init()
+        try {
+          Ticker.init()
+        } catch (error) {
+          console.error('Ticker initialization failed', error)
+        }
 
-        this.onResize()
-        Ticker.nextTick(this.intro, this)
+        try {
+          this.onResize()
+        } catch (error) {
+          console.error('Viewport initialization failed', error)
+          window.safeWidth = window.innerWidth
+          window.safeHeight = window.innerHeight
+          window.maxScrollTop = Math.max(
+            document.body.scrollHeight - window.safeHeight,
+            1
+          )
+          window.scrollProgress = 0
+        }
+
+        const runIntro = () => {
+          if (this.introStarted) return
+          this.introStarted = true
+
+          try {
+            this.intro()
+          } catch (error) {
+            console.error('Intro animation failed', error)
+            document.documentElement.classList.add('is-intro-fallback')
+            this.revealPage()
+          }
+        }
+
+        Ticker.nextTick(runIntro, this)
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(runIntro)
+        })
       }
 
       /**
@@ -462,14 +521,7 @@ import '../styles/global.scss'
         ).matches
 
         const finalizeIntro = () => {
-          mount.style.opacity = '1'
-          intro.remove()
-
-          document.documentElement.classList.remove('is-scroll-blocked')
-
-          Ticker.nextTick(() => {
-            Emitter.emit('updateViewport')
-          })
+          this.revealPage()
         }
 
         if (!wrapper || !intro || !mount) {
@@ -748,6 +800,35 @@ import '../styles/global.scss'
 
         tl.call(finalizeIntro, null, 5.25)
       }
+
+      revealPage() {
+        const wrapper: HTMLElement = document.querySelector('.js-site-wrapper')
+        const intro: HTMLElement = document.querySelector('.js-intro')
+        const mount: HTMLElement = document.querySelector('.js-mount')
+
+        if (window.__auraMirrorIntroFallback) {
+          window.clearTimeout(window.__auraMirrorIntroFallback)
+          window.__auraMirrorIntroFallback = undefined
+        }
+
+        if (wrapper) {
+          wrapper.style.opacity = ''
+        }
+
+        if (mount) {
+          mount.style.opacity = '1'
+        }
+
+        intro?.remove()
+
+        document.dispatchEvent(new CustomEvent('intro'))
+        document.documentElement.dataset.auraIntroComplete = '1'
+        document.documentElement.classList.remove('is-scroll-blocked')
+
+        Ticker.nextTick(() => {
+          Emitter.emit('updateViewport')
+        })
+      }
     }
 
     const site = new Site()
@@ -956,6 +1037,47 @@ import '../styles/global.scss'
 
       @include mq(phone) {
         clip-path: inset(0 -0.5rem);
+      }
+    }
+
+    :global(html.is-intro-fallback) {
+      :global(.site-wrapper),
+      :global(.site-head),
+      :global(.s-hero) {
+        opacity: 1 !important;
+      }
+
+      :global(.s-hero .s__content) {
+        clip-path: none !important;
+        overflow: visible;
+      }
+
+      :global(.s-hero .s__auth-slot),
+      :global(.s-hero .s__border),
+      :global(.s-hero .s__separator) {
+        transform: none !important;
+      }
+
+      :global(.s-hero .s__title),
+      :global(.s-hero .s__title__word),
+      :global(.s-hero .char),
+      :global(.s-hero .char__inner) {
+        color: color(secondary) !important;
+        clip-path: none !important;
+      }
+
+      :global(.s-hero .s__title__word) {
+        height: auto;
+      }
+
+      :global(.s-hero .char__inner) {
+        top: 0 !important;
+        transform: none !important;
+      }
+
+      :global(.s-hero .char__inner::before),
+      :global(.s-hero .char__inner::after) {
+        content: none !important;
       }
     }
 
