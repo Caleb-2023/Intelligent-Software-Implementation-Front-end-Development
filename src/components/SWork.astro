@@ -10,10 +10,25 @@ const palettes = [
   'linear-gradient(135deg, #1c1210, #7c4330, #e0b190)',
 ]
 
-const works = Array.from({ length: 18 }, (_, index) => ({
-  caption: `Wardrobe Item ${index + 1}`,
-  palette: palettes[index % palettes.length],
-}))
+// Fetch templates from API at build time
+let templates: Array<{ caption: string; image_url: string }> = []
+try {
+  const res = await fetch('http://192.168.0.102:3000/api/templates')
+  if (res.ok) {
+    const json = await res.json()
+    templates = (json?.data?.templates || []) as Array<{ caption: string; image_url: string }>
+  }
+} catch {}
+
+const TOTAL = 18
+const works = Array.from({ length: TOTAL }, (_, index) => {
+  const tpl = templates.length > 0 ? templates[index % templates.length] : null
+  return {
+    caption: tpl ? tpl.caption : `Wardrobe Item ${index + 1}`,
+    palette: palettes[index % palettes.length],
+    imageUrl: tpl ? tpl.image_url : '',
+  }
+})
 ---
 
 <section id="work" class="s-work" data-intersect>
@@ -35,6 +50,7 @@ const works = Array.from({ length: 18 }, (_, index) => ({
               cssClass="s__scene__work s__scene__work--wardrobe js-work"
               caption={work.caption}
               palette={work.palette}
+              imageUrl={work.imageUrl}
               index={String(index).padStart(4, '0')}
               total={String(works.length).padStart(2, '0')}
             />

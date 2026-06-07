@@ -1248,37 +1248,11 @@ function cleanupHistoryScrollFx() {
 function setupHistoryScrollFx() {
   cleanupHistoryScrollFx()
 
-  const section = document.querySelector('.am-history-section')
   const list = document.getElementById('am-history-list')
-  if (!list) {
-    return
-  }
+  if (!list) return
 
-  if (!section || window.innerWidth < 900 || state.historyEntries.length < 2) {
-    gsap.set(list, { clearProps: 'transform' })
-    return
-  }
-
-  const totalOverflow = Math.max(0, list.scrollWidth - list.clientWidth)
-  if (!totalOverflow) {
-    return
-  }
-
-  state.historyScrollTween = gsap.to(list, {
-    x: -totalOverflow,
-    ease: 'none',
-    paused: true,
-  })
-
-  state.historyScrollTrigger = ScrollTrigger.create({
-    trigger: section,
-    start: 'top top',
-    end: `+=${totalOverflow + window.innerHeight * 0.55}`,
-    pin: true,
-    scrub: 1,
-    animation: state.historyScrollTween,
-    invalidateOnRefresh: true,
-  })
+  // Use native horizontal scroll — no GSAP pin that conflicts with SWork ScrollTrigger
+  gsap.set(list, { clearProps: 'transform' })
 }
 
 function createHistoryWebGlInstance(card) {
@@ -1584,9 +1558,7 @@ function renderHistoryList() {
           )}</span>
           <strong class="am-history-card__title">${escapeHtml(entry.headline)}</strong>
           <span class="am-history-card__meta">${escapeHtml(timestamp)}</span>
-          <span class="am-history-card__meta">${escapeHtml(
-            entry.context.city
-          )} / ${escapeHtml(entry.context.weatherLabel)}</span>
+          <span class="am-history-card__meta">${escapeHtml(entry.context.occasion || '')} / ${escapeHtml(entry.context.weatherLabel || '')}</span>
           <span class="am-history-card__meta">${clothCount} garment${
             clothCount === 1 ? '' : 's'
           }</span>
@@ -2119,6 +2091,7 @@ function clearAvatarState() {
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image()
+    image.crossOrigin = 'anonymous'
     image.onload = () => resolve(image)
     image.onerror = reject
     image.src = src
@@ -2459,13 +2432,27 @@ async function renderAvatar() {
       )
     })
 
-    // Step 3: Load the AI-generated avatar image
-    const avatarUrl = result.result?.avatar_url || result.result?.image_url || ''
-    if (!avatarUrl) {
-      throw new Error('No avatar image returned from AI')
+    // Step 3: Load the AI-generated avatar image via backend proxy (avoids CDN CORS issues)
+    const resolvedFigureId = figureId || result.result?.figure_id || ''
+    if (!resolvedFigureId) {
+      throw new Error('No figure ID returned from AI')
     }
 
-    const avatarImage = await loadImage(avatarUrl)
+    const imageResp = await fetch(`${API_ENDPOINTS.figures}/${resolvedFigureId}/image`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!imageResp.ok) {
+      throw new Error(`Failed to fetch avatar image (${imageResp.status})`)
+    }
+    const imageBlob = await imageResp.blob()
+    const blobUrl = URL.createObjectURL(imageBlob)
+
+    let avatarImage
+    try {
+      avatarImage = await loadImage(blobUrl)
+    } finally {
+      URL.revokeObjectURL(blobUrl)
+    }
 
     // Draw AI avatar on canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height)

@@ -963,6 +963,7 @@ html.am-overlay-open body {
   gap: 1rem;
   padding: 1.25rem;
   align-items: start;
+  overflow: hidden;
 }
 
 .am-history-list {
@@ -971,7 +972,24 @@ html.am-overlay-open body {
   grid-auto-columns: minmax(17rem, 19rem);
   gap: 0.9rem;
   align-content: start;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(22, 0, 0, 0.25) transparent;
+}
+
+.am-history-list::-webkit-scrollbar {
+  height: 4px;
+}
+
+.am-history-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.am-history-list::-webkit-scrollbar-thumb {
+  background: rgba(22, 0, 0, 0.25);
+  border-radius: 2px;
 }
 
 .am-history-card {
