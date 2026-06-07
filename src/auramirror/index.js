@@ -862,6 +862,7 @@ function applyAuthenticatedSession({ token, user }) {
   setStoredAuth(token, state.authUser)
   updateAuthNavigation()
   updateAccountDashboard()
+  loadTryonHistory()
 }
 
 async function signOutAndResetWardrobe() {
@@ -1641,6 +1642,129 @@ function bindRecommendationHistory() {
     })
     setupHistoryScrollFx()
     ScrollTrigger.refresh()
+  })
+
+  // Tab switching
+  const tabTryon = document.getElementById('am-tab-tryon')
+  const tabRec = document.getElementById('am-tab-recommendation')
+  const panelTryon = document.getElementById('am-panel-tryon')
+  const panelRec = document.getElementById('am-panel-recommendation')
+
+  function switchTab(tab) {
+    const isTryon = tab === 'tryon'
+    tabTryon?.classList.toggle('is-active', isTryon)
+    tabRec?.classList.toggle('is-active', !isTryon)
+    tabTryon?.setAttribute('aria-selected', isTryon ? 'true' : 'false')
+    tabRec?.setAttribute('aria-selected', isTryon ? 'false' : 'true')
+    if (panelTryon) panelTryon.hidden = !isTryon
+    if (panelRec) panelRec.hidden = isTryon
+    if (clearButton) clearButton.hidden = isTryon
+    if (!isTryon && list) setupHistoryScrollFx()
+    if (isTryon) loadTryonHistory()
+  }
+
+  tabTryon?.addEventListener('click', () => switchTab('tryon'))
+  tabRec?.addEventListener('click', () => switchTab('recommendation'))
+
+  // Load tryon history by default (first tab)
+  loadTryonHistory()
+}
+
+async function loadTryonHistory() {
+  const token = getApiToken()
+  const container = document.getElementById('am-tryon-history-list')
+  if (!container) return
+
+  if (!token) {
+    container.innerHTML = '<div class="am-empty-state">Sign in to view your try-on history.</div>'
+    return
+  }
+
+  container.innerHTML = '<div class="am-empty-state">Loading...</div>'
+
+  try {
+    const resp = await fetch(`${API_ENDPOINTS.tryons}?limit=30`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!resp.ok) throw new Error('Failed to load')
+
+    const json = await resp.json()
+    const tryons = json?.data?.tryons || []
+    renderTryonHistory(tryons)
+  } catch {
+    container.innerHTML = '<div class="am-empty-state">Could not load try-on history.</div>'
+  }
+}
+
+function renderTryonHistory(tryons) {
+  const container = document.getElementById('am-tryon-history-list')
+  if (!container) return
+
+  if (!tryons.length) {
+    container.innerHTML = '<div class="am-empty-state">No try-on history yet. Use the Wardrobe module to create your first virtual fitting.</div>'
+    return
+  }
+
+  const completed = tryons.filter((t) => t.status === 'completed' && t.image_url)
+
+  if (!completed.length) {
+    container.innerHTML = '<div class="am-empty-state">No completed try-ons with images yet.</div>'
+    return
+  }
+
+  container.innerHTML = completed
+    .map((t) => {
+      const id = t._id || ''
+      const clothCount = Array.isArray(t.cloth_ids) ? t.cloth_ids.length : 0
+      const date = t.date ? new Date(t.date) : null
+      const dateStr = date
+        ? date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : ''
+      const timeStr = date
+        ? date.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit' })
+        : ''
+      const title = clothCount === 1 ? '1-Piece Look' : `${clothCount}-Piece Look`
+      return `
+        <div class="am-tryon-card">
+          <div class="am-tryon-card__thumb">
+            <img class="am-tryon-card__img"
+              data-tryon-id="${escapeHtml(id)}"
+              alt="Try-on result"
+              hidden />
+            <div class="am-tryon-card__fallback">Loading...</div>
+          </div>
+          <span class="am-tryon-card__eyebrow">Virtual Try-On</span>
+          <strong class="am-tryon-card__title">${escapeHtml(title)}</strong>
+          <span class="am-tryon-card__meta">${escapeHtml(dateStr)}${timeStr ? ' · ' + escapeHtml(timeStr) : ''}</span>
+          <span class="am-tryon-card__meta">${clothCount} garment${clothCount === 1 ? '' : 's'}</span>
+        </div>
+      `
+    })
+    .join('')
+
+  // Fetch each image with auth token and set blob URL
+  const token = getApiToken()
+  container.querySelectorAll('img[data-tryon-id]').forEach(async (img) => {
+    const id = img.getAttribute('data-tryon-id')
+    const fallback = img.nextElementSibling
+    if (!id || !token) {
+      if (fallback) fallback.textContent = 'Sign in to view'
+      return
+    }
+    try {
+      const resp = await fetch(`${API_ENDPOINTS.tryons}/${id}/image`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!resp.ok) throw new Error(`${resp.status}`)
+      const blob = await resp.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      img.src = blobUrl
+      img.hidden = false
+      if (fallback) fallback.hidden = true
+      img.onload = () => URL.revokeObjectURL(blobUrl)
+    } catch {
+      if (fallback) fallback.textContent = 'Preview unavailable'
+    }
   })
 }
 
