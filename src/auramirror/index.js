@@ -197,7 +197,6 @@ function normalizeCloth(item) {
     imageUrl: String(item?.image_url || item?.imageUrl || ''),
     attributes: {
       color: String(item?.attributes?.color || 'unknown'),
-      material: String(item?.attributes?.material || 'unspecified'),
       season: Array.isArray(item?.attributes?.season)
         ? item.attributes.season.map(String)
         : [],
@@ -2154,7 +2153,7 @@ function renderWardrobeGrid() {
     .map((item) => {
       const isSelected = state.selectedClothIds.includes(item._id)
       const seasons = item.attributes.season.join(' · ') || 'all seasons'
-      const occasions = item.attributes.occasion.join(' · ') || 'multi use'
+      const occasions = item.attributes.occasion.join(' · ')
       const imageUrl = resolveAssetUrl(item.imageUrl)
       const imageMarkup = imageUrl
         ? `<span class="am-wardrobe-card__media"><img src="${escapeHtml(
@@ -2172,14 +2171,9 @@ function renderWardrobeGrid() {
           ${imageMarkup}
           <span class="am-wardrobe-card__eyebrow">${escapeHtml(item.category)}</span>
           <strong class="am-wardrobe-card__title">${escapeHtml(item.name)}</strong>
-          <span class="am-wardrobe-card__meta">Color: ${escapeHtml(
-            item.attributes.color
-          )}</span>
-          <span class="am-wardrobe-card__meta">Material: ${escapeHtml(
-            item.attributes.material
-          )}</span>
+          <span class="am-wardrobe-card__meta">Color: ${escapeHtml(item.attributes.color)}</span>
           <span class="am-wardrobe-card__meta">Season: ${escapeHtml(seasons)}</span>
-          <span class="am-wardrobe-card__meta">Occasion: ${escapeHtml(occasions)}</span>
+          ${occasions ? `<span class="am-wardrobe-card__meta">Occasion: ${escapeHtml(occasions)}</span>` : ''}
           <span class="am-wardrobe-card__cta">${
             isSelected ? 'Selected' : 'Select garment'
           }</span>
