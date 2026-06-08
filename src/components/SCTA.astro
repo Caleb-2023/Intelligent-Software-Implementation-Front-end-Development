@@ -1,0 +1,297 @@
+<section class="s-cta am-history-section" data-intersect>
+  <div id="contact" class="s__inner js-container am-history-shell">
+    <div class="am-history-panel js-history-panel">
+      <header class="am-history-panel__header">
+        <div>
+          <p class="am-history-panel__eyebrow">AuraMirror</p>
+          <h2 class="am-history-panel__title">History</h2>
+        </div>
+
+        <div class="am-history-header-actions">
+          <div class="am-history-tabs" role="tablist" aria-label="History tabs">
+            <button
+              id="am-tab-tryon"
+              class="am-history-tab is-active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="am-panel-tryon"
+              data-history-tab="tryon"
+            >Try-On History</button>
+            <button
+              id="am-tab-recommendation"
+              class="am-history-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="am-panel-recommendation"
+              data-history-tab="recommendation"
+            >Recommendation History</button>
+          </div>
+
+          <button
+            id="am-clear-history"
+            class="am-button am-button--ghost"
+            type="button"
+            aria-label="Clear history"
+            hidden
+          >
+            Clear
+          </button>
+        </div>
+      </header>
+
+      <div class="am-history-panel__body">
+        <!-- Try-On History Panel -->
+        <div
+          id="am-panel-tryon"
+          class="am-history-panel__tab-content"
+          role="tabpanel"
+          aria-labelledby="am-tab-tryon"
+        >
+          <div
+            id="am-tryon-history-list"
+            class="am-history-list am-tryon-list"
+            aria-label="Try-on history list"
+          >
+            <div class="am-empty-state">Try-on history will appear here after your first virtual fitting.</div>
+          </div>
+        </div>
+
+        <!-- Recommendation History Panel -->
+        <div
+          id="am-panel-recommendation"
+          class="am-history-panel__tab-content"
+          role="tabpanel"
+          aria-labelledby="am-tab-recommendation"
+          hidden
+        >
+          <div class="am-history-panel__body-inner">
+            <div
+              id="am-history-list"
+              class="am-history-list"
+              aria-label="Recommendation history list"
+            >
+              <div class="am-empty-state">Recommendation history will appear here.</div>
+            </div>
+
+            <aside
+              id="am-history-focus"
+              class="am-history-focus"
+              aria-live="polite"
+              aria-label="Focused recommendation details"
+            >
+              <p class="am-history-focus__eyebrow">Focus Detail</p>
+              <div id="am-history-focus-content" class="am-history-focus__content">
+                Hover or focus a history item to inspect its styling context.
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="s__grid js-grid" aria-hidden="true">
+    <svg class="s__grid__svg js-grid-svg" aria-hidden="true" focusable="false">
+      <path class="s__grid__path js-grid-path" d=""></path>
+    </svg>
+  </div>
+</section>
+
+<script>
+  // Background grid: centre-out radial ripple (shared with the record pages).
+  import { createRippleGrid } from '../auramirror/shared/grid.js'
+
+  const section = document.querySelector('.am-history-section')
+  const gridEl = section?.querySelector('.js-grid')
+  const gridPath = section?.querySelector('.js-grid-path')
+
+  if (gridEl && gridPath) {
+    createRippleGrid(gridEl, gridPath)
+  }
+</script>
+
+<style lang="scss">
+  .s-cta.am-history-section {
+    position: relative;
+    z-index: 2;
+
+    padding: clamp(8rem, 10vw, 10rem) 0 clamp(8rem, 12vw, 11rem);
+
+    overflow: hidden;
+    isolation: isolate;
+
+    background:
+      radial-gradient(circle at 50% 28%, rgba(244, 12, 63, 0.14), transparent 35%),
+      linear-gradient(180deg, rgba(244, 12, 63, 0.08), transparent 28%);
+
+    @include mq(tablet-sm) {
+      padding-top: 7rem;
+      padding-bottom: 8rem;
+    }
+
+    @include mq(phone) {
+      padding-top: 5.5rem;
+      padding-bottom: 6.5rem;
+    }
+
+    &:before {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+
+      background: radial-gradient(
+        circle at 50% 44%,
+        rgba(255, 255, 255, 0.24),
+        transparent 54%
+      );
+
+      content: '';
+      pointer-events: none;
+    }
+
+    .s__inner {
+      position: relative;
+      z-index: 3;
+    }
+
+    .am-history-panel {
+      position: relative;
+      z-index: 2;
+
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08)),
+        rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 1.5rem 3rem rgba(22, 0, 0, 0.08);
+
+      &:before {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+
+        background:
+          radial-gradient(circle at 50% 38%, rgba(244, 12, 63, 0.08), transparent 44%),
+          linear-gradient(180deg, rgba(244, 12, 63, 0.08), transparent 32%);
+
+        content: '';
+        pointer-events: none;
+      }
+    }
+
+    .am-history-panel__header,
+    .am-history-panel__body {
+      position: relative;
+      z-index: 2;
+    }
+
+    .am-history-panel__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 1.25rem;
+      border-bottom: 1px solid rgba(22, 0, 0, 0.12);
+    }
+
+    .am-history-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .am-history-tabs {
+      display: flex;
+      gap: 0;
+      border: 1px solid rgba(22, 0, 0, 0.18);
+    }
+
+    .am-history-tab {
+      appearance: none;
+      padding: 0.5rem 1rem;
+      background: transparent;
+      border: none;
+      border-right: 1px solid rgba(22, 0, 0, 0.18);
+      color: rgba(22, 0, 0, 0.5);
+      font: 700 0.72rem / 1 var(--font-fraktion, monospace);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.18s ease, color 0.18s ease;
+
+      &:last-child {
+        border-right: none;
+      }
+
+      &.is-active {
+        background: rgba(22, 0, 0, 0.06);
+        color: rgba(22, 0, 0, 0.9);
+      }
+
+      &:hover:not(.is-active) {
+        background: rgba(22, 0, 0, 0.03);
+        color: rgba(22, 0, 0, 0.7);
+      }
+    }
+
+    .am-history-panel__body {
+      padding: 1.25rem;
+    }
+
+    .am-history-panel__body-inner {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .am-history-panel__tab-content[hidden] {
+      display: none;
+    }
+
+    .am-tryon-list {
+      grid-template-columns: unset;
+    }
+
+    .s__grid {
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      z-index: 1;
+
+      width: calc(100% + 2px);
+      height: calc(100% + 2px);
+
+      opacity: 1;
+      pointer-events: none;
+
+      &__svg {
+        position: absolute;
+        inset: 0;
+
+        width: 100%;
+        height: 100%;
+      }
+
+      &__path {
+        fill: none;
+        stroke: color(secondary);
+        stroke-width: 1px;
+        opacity: 1;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        shape-rendering: geometricPrecision;
+        vector-effect: non-scaling-stroke;
+      }
+    }
+
+    &.is-out-of-view {
+      .s__grid {
+        display: none;
+      }
+    }
+  }
+</style>
